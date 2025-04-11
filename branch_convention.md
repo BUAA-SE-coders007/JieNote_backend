@@ -1,12 +1,11 @@
-# Dev分支开发规范
+# Release分支开发规范
 
 大家好, 这里是运维coder0xe! 请大家在开发时遵守以下开发规范：
 
-1. 开发者可以检出 feature 和 fix 分支，开发完成后 push 回 dev；
-    
-2. 保证领先于 main；
-    
-3. ❌ 不允许开发者日常 push，只允许完成功能开发或 bug 修复后通过 pull request 进行合并。
+* 从 develop 分支检出，只用于发布前的确认；
+* 允许从中分出 fix 分支，修复的 commit 需要 push 回 dev；
+* ❌ 不允许开发者日常 push，只允许从 dev 合并。
+
 
 
 feature 分支
