@@ -90,10 +90,10 @@ def send_code(user_send_code : UserSendCode, db: Session = Depends(get_db)):
     code = str(random.randint(100000, 999999))
 
     # SMTP 配置
-    smtp_server = "smtp.163.com"
-    smtp_port = 465
-    sender_email = "19855278313@163.com"  # 替换为你的网易邮箱
-    sender_password = "DHSihwnVc4wS89eV"  # 替换为你的授权码
+    smtp_server = settings.SMTP_SERVER
+    smtp_port = settings.SMTP_PORT
+    sender_email = settings.SENDER_EMAIL 
+    sender_password = settings.SENDER_PASSWORD  
 
     # 邮件内容
     subject = "验证码"
@@ -114,8 +114,8 @@ def send_code(user_send_code : UserSendCode, db: Session = Depends(get_db)):
             server.sendmail(sender_email, [user_send_code.email], message.as_string())
 
         # 将验证码和发送时间存储到 Redis，设置 5 分钟过期时间
-        redis_client.setex(f"email:{user_send_code.email}:code", 300, code)
-        redis_client.setex(f"email:{user_send_code.email}:time", 300, int(time.time()))
+        redis_client.setex(f"email:{user_send_code.email}:code", settings.ACCESS_TOKEN_EXPIRE_MINUTES, code)
+        redis_client.setex(f"email:{user_send_code.email}:time", settings.ACCESS_TOKEN_EXPIRE_MINUTES, int(time.time()))
 
         return {"msg": "Verification code sent"}
 
