@@ -8,39 +8,23 @@ from email.mime.text import MIMEText
 from email.header import Header
 import random
 import time
-import redis
 from email.utils import formataddr
 
-from app.db.session import SessionLocal
-from app.models.model import User
 from app.schemas.auth import UserCreate, UserLogin, UserSendCode
 from app.core.config import settings
 from app.curd.user import get_user_by_email, create_user
+from app.utils.get_db import get_db
+from app.utils.redis import get_redis_client
 
 router = APIRouter()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # 使用 bcrypt 加密算法
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 # 配置 Redis 连接
-while True:
-    try:
-        print("Connecting to Redis...")
-        redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
-        redis_client.ping()
-        break
-    except redis.ConnectionError:
-        print("Redis connection failed, retrying...")
-        time.sleep(1)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+redis_client = get_redis_client()
 
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
@@ -114,8 +98,8 @@ def send_code(user_send_code : UserSendCode, db: Session = Depends(get_db)):
             server.sendmail(sender_email, [user_send_code.email], message.as_string())
 
         # 将验证码和发送时间存储到 Redis，设置 5 分钟过期时间
-        redis_client.setex(f"email:{user_send_code.email}:code", settings.ACCESS_TOKEN_EXPIRE_MINUTES, code)
-        redis_client.setex(f"email:{user_send_code.email}:time", settings.ACCESS_TOKEN_EXPIRE_MINUTES, int(time.time()))
+        redis_client.setex(f"email:{user_send_code.email}:code", ACCESS_TOKEN_EXPIRE_MINUTES, code)
+        redis_client.setex(f"email:{user_send_code.email}:time", ACCESS_TOKEN_EXPIRE_MINUTES, int(time.time()))
 
         return {"msg": "Verification code sent"}
 

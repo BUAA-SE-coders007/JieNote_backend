@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Table, ForeignKey, UniqueConstraint, CheckConstraint
+from sqlalchemy import Column, Integer, String, Boolean, Table, ForeignKey, UniqueConstraint, CheckConstraint, Text
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
@@ -62,7 +62,7 @@ class Note(Base):
     __tablename__ = 'notes'
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    content = Column(String(255))  # 为 content 字段指定长度
+    content = Column(Text)  # 将 content 字段类型改为 Text，以支持存储大量文本
     article_id = Column(Integer, ForeignKey('articles.id'))
 
     article = relationship('Article', back_populates='notes')
