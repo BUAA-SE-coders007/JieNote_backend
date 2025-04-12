@@ -83,10 +83,27 @@ This is the backend service for JieNote, built with FastAPI.
 uvicorn app.main:app --reload
 ```
 
+## Redis
+- Redis is used for caching and session management.
+- Make sure to have Redis installed and running.
+
+```bash
+cd path/to/redis
+# Start Redis server
+redis-server.exe redis.windows.conf
+```
+Attention！！！
+- Make sure the port is not occupied by other services.
+- If you want to use the default port, please modify the `redis.windows.conf` file.
+- Must connect Redis before running the application. ‼️‼️‼️
+  
+
 ## Folder Structure
 - `app/`: Contains the main application code.
 - `tests/`: Contains test cases.
 - `env/`: Virtual environment (not included in version control).
+
+
 
 ## ER Diagram
 ![ER Diagram](img/er_diagram.jpg)
