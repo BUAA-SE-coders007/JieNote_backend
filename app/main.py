@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.api.v1.endpoints.auth import router as auth_router
+from app.routers.router import include_routers
 
 app = FastAPI()
 
@@ -11,4 +11,5 @@ def read_root():
 def read_item(item_id: int, q: str = None):
     return {"item_id": item_id, "q": q}
 
-app.include_router(auth_router, prefix="/public", tags=["auth"])
+# 注册路由
+include_routers(app)
