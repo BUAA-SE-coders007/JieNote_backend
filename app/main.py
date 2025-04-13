@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.routers.router import include_routers
+from fastapi_pagination import add_pagination
 
 app = FastAPI()
 
@@ -13,3 +14,6 @@ def read_item(item_id: int, q: str = None):
 
 # 注册路由
 include_routers(app)
+
+# 注册分页功能
+add_pagination(app)

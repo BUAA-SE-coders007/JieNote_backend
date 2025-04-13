@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, Table, ForeignKey, UniqueConstraint, CheckConstraint, Text
+from sqlalchemy import Column, Integer, String, Boolean, Table, ForeignKey, UniqueConstraint, CheckConstraint, Text, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from app.db.base_class import Base
 
 # 多对多关系表
@@ -28,6 +29,8 @@ class Group(Base):
     leader = Column(Integer)
     users = relationship('User', secondary=user_group, back_populates='groups')
     folders = relationship('Folder', back_populates='group')
+    create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
+    update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
 
 class Folder(Base):
     __tablename__ = 'folders'
@@ -37,6 +40,9 @@ class Folder(Base):
     
     user_id = Column(Integer, ForeignKey('users.id'))
     group_id = Column(Integer, ForeignKey('groups.id'))
+
+    create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
+    update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     
     # 关系定义
     user = relationship('User', back_populates='folders')
@@ -53,6 +59,8 @@ class Article(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(30), nullable=False)
     folder_id = Column(Integer, ForeignKey('folders.id'))
+    create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
+    update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     
     folder = relationship('Folder', back_populates='articles')
     notes = relationship('Note', back_populates='article')
@@ -64,6 +72,8 @@ class Note(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     content = Column(Text)  # 将 content 字段类型改为 Text，以支持存储大量文本
     article_id = Column(Integer, ForeignKey('articles.id'))
+    create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
+    update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
 
     article = relationship('Article', back_populates='notes')
 
@@ -73,5 +83,6 @@ class Tag(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     content = Column(String(30))
     article_id = Column(Integer, ForeignKey('articles.id'))
-    
+    create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
+    update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     article = relationship('Article', back_populates='tags')
