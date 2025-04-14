@@ -1,41 +1,52 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy import delete, func
 from app.models.model import Note
 from app.schemas.note import NoteCreate, NoteUpdate, NoteFind, NoteResponse
 
-def create_note_in_db(note: NoteCreate, db: Session):
+async def create_note_in_db(note: NoteCreate, db: AsyncSession):
     new_note = Note(content=note.content, article_id=note.article_id)
     db.add(new_note)
-    db.commit()
-    db.refresh(new_note)
+    await db.commit()
+    await db.refresh(new_note)
     return new_note
 
-def delete_note_in_db(note_id: int, db: Session):
-    note = db.query(Note).filter(Note.id == note_id).first()
+async def delete_note_in_db(note_id: int, db: AsyncSession):
+    stmt = select(Note).where(Note.id == note_id)
+    result = await db.execute(stmt)
+    note = result.scalar_one_or_none()
     if note:
-        db.delete(note)
-        db.commit()
+        delete_stmt = delete(Note).where(Note.id == note_id)
+        await db.execute(delete_stmt)
+        await db.commit()
     return note
 
-def update_note_in_db(note_id: int, note: NoteUpdate, db: Session):
-    existing_note = db.query(Note).filter(Note.id == note_id).first()
+async def update_note_in_db(note_id: int, note: NoteUpdate, db: AsyncSession):
+    stmt = select(Note).where(Note.id == note_id)
+    result = await db.execute(stmt)
+    existing_note = result.scalar_one_or_none()
     if existing_note:
         existing_note.content = note.content
-        db.commit()
-        db.refresh(existing_note)
+        await db.commit()
+        await db.refresh(existing_note)
     return existing_note
 
-def find_notes_in_db(note_find: NoteFind, db: Session):
-    query = db.query(Note)
+async def find_notes_in_db(note_find: NoteFind, db: AsyncSession):
+    stmt = select(Note)
 
     if note_find.id is not None:
-        query = query.filter(Note.id == note_find.id)
+        stmt = stmt.where(Note.id == note_find.id)
     elif note_find.article_id is not None:
-        query = query.filter(Note.article_id == note_find.article_id)
+        stmt = stmt.where(Note.article_id == note_find.article_id)
 
-    totol_count = query.count()
-    # 添加分页逻辑
+    total_count_stmt = select(func.count()).select_from(stmt)
+    total_count_result = await db.execute(total_count_stmt)
+    total_count = total_count_result.scalar()
+
     if note_find.page is not None and note_find.page_size is not None:
         offset = (note_find.page - 1) * note_find.page_size
-        query = query.offset(offset).limit(note_find.page_size)
-    notes = [NoteResponse.model_validate(note) for note in query.all()]
-    return notes, totol_count
+        stmt = stmt.offset(offset).limit(note_find.page_size)
+
+    result = await db.execute(stmt)
+    notes = [NoteResponse.model_validate(note) for note in result.scalars().all()]
+    return notes, total_count

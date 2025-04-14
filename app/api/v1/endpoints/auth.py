@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import jwt
-import smtplib
+import aiosmtplib
 from email.mime.text import MIMEText
 from email.header import Header
 import random
@@ -18,7 +18,7 @@ from app.utils.redis import get_redis_client
 
 router = APIRouter()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto") # 使用 bcrypt 加密算法
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")  # 使用 bcrypt 加密算法
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
@@ -26,7 +26,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 # 配置 Redis 连接
 redis_client = get_redis_client()
 
-def create_access_token(data: dict, expires_delta: timedelta = None):
+async def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now() + expires_delta
@@ -37,36 +37,35 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     return encoded_jwt
 
 @router.post("/register", response_model=dict)
-def register(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = get_user_by_email(db, user.email)
-    if (redis_client.exists(f"email:{user.email}:code")):
-        code = redis_client.get(f"email:{user.email}:code").decode("utf-8")
-        if (user.code != code):
+async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
+    existing_user = await get_user_by_email(db, user.email)
+    if redis_client.exists(f"email:{user.email}:code"):
+        code = redis_client.get(f"email:{user.email}:code")
+        if user.code != code:
             raise HTTPException(status_code=400, detail="Invalid verification code")
     else:
         raise HTTPException(status_code=400, detail="Verification code expired or not sent")
-    
-    if (existing_user):
+
+    if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     hashed_password = pwd_context.hash(user.password)
-    create_user(db, user.email, user.username, hashed_password)
+    await create_user(db, user.email, user.username, hashed_password)
     return {"msg": "User registered successfully"}
 
 @router.post("/login", response_model=dict)
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = get_user_by_email(db, user.email)
+async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
+    db_user = await get_user_by_email(db, user.email)
     if not db_user or not pwd_context.verify(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
+    access_token = await create_access_token(
         data={"sub": db_user.email}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer", }
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # 发送验证码
 @router.post("/send_code", response_model=dict)
-def send_code(user_send_code : UserSendCode, db: Session = Depends(get_db)):
-    # 检查 Redis 中是否存在该邮箱的发送记录
+async def send_code(user_send_code: UserSendCode):
     if redis_client.exists(f"email:{user_send_code.email}:time"):
         raise HTTPException(status_code=429, detail="You can only request a verification code once every 5 minutes.")
 
@@ -85,23 +84,26 @@ def send_code(user_send_code : UserSendCode, db: Session = Depends(get_db)):
 
     # 创建MIMEText对象时需要显式指定子类型和编码
     message = MIMEText(_text=body, _subtype='plain', _charset='utf-8')
-    message["From"] = formataddr(("JieNote团队", "noreply@jienote.com"))
+    message["From"] = formataddr(("JieNote团队", "jienote_buaa@163.com"))
     message["To"] = user_send_code.email
     message["Subject"] = Header(subject, 'utf-8').encode()
     # 添加必要的内容传输编码头
     message.add_header('Content-Transfer-Encoding', 'base64')
 
     try:
-        # 连接 SMTP 服务器并发送邮件
-        with smtplib.SMTP_SSL(smtp_server, smtp_port) as server:
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, [user_send_code.email], message.as_string())
+        await aiosmtplib.send(
+            message,
+            hostname=smtp_server,
+            port=smtp_port,
+            username=sender_email,
+            password=sender_password,
+            use_tls=True,
+        )
 
-        # 将验证码和发送时间存储到 Redis，设置 5 分钟过期时间
-        redis_client.setex(f"email:{user_send_code.email}:code", ACCESS_TOKEN_EXPIRE_MINUTES, code)
-        redis_client.setex(f"email:{user_send_code.email}:time", ACCESS_TOKEN_EXPIRE_MINUTES, int(time.time()))
+        redis_client.setex(f"email:{user_send_code.email}:code", ACCESS_TOKEN_EXPIRE_MINUTES * 60, code)
+        redis_client.setex(f"email:{user_send_code.email}:time", ACCESS_TOKEN_EXPIRE_MINUTES * 60, int(time.time()))
 
         return {"msg": "Verification code sent"}
 
-    except smtplib.SMTPException as e:
+    except aiosmtplib.SMTPException as e:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
