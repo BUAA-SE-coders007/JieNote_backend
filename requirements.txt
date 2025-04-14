@@ -1,6 +1,9 @@
+aiosmtplib==4.0.0
 alembic==1.15.2
 annotated-types==0.7.0
 anyio==4.9.0
+async-timeout==5.0.1
+asyncmy==0.2.10
 bcrypt==4.3.0
 cffi==1.17.1
 click==8.1.8
@@ -10,6 +13,7 @@ dnspython==2.7.0
 dotenv==0.9.9
 email_validator==2.2.0
 fastapi==0.115.12
+fastapi-pagination==0.12.34
 greenlet==3.1.1
 h11==0.14.0
 idna==3.10
