@@ -98,6 +98,10 @@ Attention！！！
 - Must connect Redis before running the application. ‼️‼️‼️
   
 
+## Token Authentication
+- JWT (JSON Web Token) is used for authentication.
+- Refresh tokens for 7 days and access tokens for 5min.
+
 ## Folder Structure
 - `app/`: Contains the main application code.
 - `tests/`: Contains test cases.

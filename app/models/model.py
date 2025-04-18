@@ -50,7 +50,9 @@ class Folder(Base):
     articles = relationship('Article', back_populates='folder')
 
     __table_args__ = (
-        UniqueConstraint('user_id', 'group_id', name='uq_user_group_folder'),
+        # 不能同时为空
+        UniqueConstraint('user_id', 'group_id', name='uq_user_group_folder'), # SQL中认为null 和 null 不相等
+        CheckConstraint('user_id IS NOT NULL OR group_id IS NOT NULL', name='check_user_or_group'),
     )    
 
 class Article(Base):
