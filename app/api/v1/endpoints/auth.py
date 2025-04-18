@@ -10,7 +10,7 @@ import random
 import time
 from email.utils import formataddr
 
-from app.schemas.auth import UserCreate, UserLogin, UserSendCode
+from app.schemas.auth import UserCreate, UserLogin, UserSendCode, ReFreshToken
 from app.core.config import settings
 from app.curd.user import get_user_by_email, create_user
 from app.utils.get_db import get_db
@@ -31,8 +31,18 @@ async def create_access_token(data: dict, expires_delta: timedelta = None):
     if expires_delta:
         expire = datetime.now() + expires_delta
     else:
-        expire = datetime.now() + timedelta(minutes=15)
+        expire = datetime.now() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+async def create_refresh_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now() + expires_delta
+    else:
+        expire = datetime.now() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -57,11 +67,39 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     db_user = await get_user_by_email(db, user.email)
     if not db_user or not pwd_context.verify(user.password, db_user.password):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_token_expires = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     access_token = await create_access_token(
-        data={"sub": db_user.email}, expires_delta=access_token_expires
+        data={"sub": db_user.email, "id": db_user.id}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    refresh_token = await create_refresh_token(
+        data={"sub": db_user.email, "id": db_user.id}, expires_delta=refresh_token_expires
+    )
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user_id": db_user.id,
+        "email": db_user.email,
+        "username": db_user.username,
+        "avatar": db_user.avatar
+    }
+
+@router.post("/refresh", response_model=dict)
+async def refresh_token(refresh_token: ReFreshToken):
+    try:
+        payload = jwt.decode(refresh_token.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid refresh token type")
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = await create_access_token(
+            data={"sub": payload["sub"], "id": payload["id"]}, expires_delta=access_token_expires
+        )
+        return {"access_token": access_token}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 # 发送验证码
 @router.post("/send_code", response_model=dict)

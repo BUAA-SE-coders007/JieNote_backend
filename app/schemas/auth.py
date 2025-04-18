@@ -13,3 +13,6 @@ class UserLogin(BaseModel):
 
 class UserSendCode(BaseModel):
     email: EmailStr
+
+class ReFreshToken(BaseModel):
+    refresh_token: str
