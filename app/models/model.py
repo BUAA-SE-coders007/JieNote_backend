@@ -44,6 +44,8 @@ class Folder(Base):
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     
+    visible = Column(Boolean, default=True, nullable=False) # 是否可见 False表示在回收站中
+    
     # 关系定义
     user = relationship('User', back_populates='folders')
     group = relationship('Group', back_populates='folders')
@@ -63,6 +65,8 @@ class Article(Base):
     folder_id = Column(Integer, ForeignKey('folders.id'))
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
+
+    visible = Column(Boolean, default=True, nullable=False) # 是否可见 False表示在回收站中
     
     folder = relationship('Folder', back_populates='articles')
     notes = relationship('Note', back_populates='article')

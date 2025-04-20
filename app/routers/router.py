@@ -4,6 +4,7 @@ from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.note import router as note_router
 from app.api.v1.endpoints.user import router as user_router
 from app.api.v1.endpoints.aichat import router as aichat_router
+from app.api.v1.endpoints.article import router as article_router
 
 def include_auth_router(app):
     app.include_router(auth_router, prefix="/public", tags=["auth"])
@@ -17,8 +18,12 @@ def include_user_router(app):
 def include_aichat_router(app):
     app.include_router(aichat_router, prefix="/chat", tags=["aichat"], dependencies=[Depends(get_current_user)])
 
+def include_article_router(app):
+    app.include_router(article_router, prefix="/article", tags=["article"], dependencies=[Depends(get_current_user)])
+
 def include_routers(app):
     include_auth_router(app)
     include_note_router(app)
     include_user_router(app)
     include_aichat_router(app)
+    include_article_router(app)
