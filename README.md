@@ -107,7 +107,8 @@ Attention！！！
 - `tests/`: Contains test cases.
 - `env/`: Virtual environment (not included in version control).
 
-
+## OCR 
+- Must install Poppler
 
 ## ER Diagram
 ![ER Diagram](img/er_diagram.jpg)
