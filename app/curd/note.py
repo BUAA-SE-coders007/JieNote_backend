@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import delete, func
+from sqlalchemy import func
 from app.models.model import Note
 from app.schemas.note import NoteCreate, NoteUpdate, NoteFind, NoteResponse
 
@@ -16,8 +16,8 @@ async def delete_note_in_db(note_id: int, db: AsyncSession):
     result = await db.execute(stmt)
     note = result.scalar_one_or_none()
     if note:
-        delete_stmt = delete(Note).where(Note.id == note_id)
-        await db.execute(delete_stmt)
+        note.visible = False  # 将 visible 设置为 False，表示删除
+        await db.execute(note)
         await db.commit()
     return note
 
@@ -32,7 +32,7 @@ async def update_note_in_db(note_id: int, note: NoteUpdate, db: AsyncSession):
     return existing_note
 
 async def find_notes_in_db(note_find: NoteFind, db: AsyncSession):
-    stmt = select(Note)
+    stmt = select(Note).where(Note.visible == True)  # 只查询可见的笔记
 
     if note_find.id is not None:
         stmt = stmt.where(Note.id == note_find.id)
