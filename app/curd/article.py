@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
-from models.model import User, Group, Folder, Article, Note, Tag, user_group
+from app.models.model import User, Group, Folder, Article, Note, Tag, user_group
 
 async def crud_upload_to_self_folder(name: str, folder_id: int, db: AsyncSession):
     new_article = Article(name=name, folder_id=folder_id)
@@ -98,3 +98,23 @@ async def crud_read_article(article_id: int, user_id: int, db: AsyncSession):
             raise HTTPException(status_code=403, detail="This is an article of a group which you don't belong to")
     
     return article.name
+
+async def crud_import_self_folder(folder_name: str, article_names, user_id: int, db: AsyncSession):
+    result = []
+
+    # 新建文件夹
+    new_folder = Folder(name=folder_name, user_id=user_id)
+    db.add(new_folder)
+    await db.commit()
+    await db.refresh(new_folder)
+
+    # 新建文献
+    for article_name in article_names:
+        new_article = Article(name=article_name, folder_id=new_folder.id)
+        db.add(new_article)
+        await db.commit()
+        await db.refresh(new_article)
+        result.append(new_article.id)
+        result.append(new_article.name)
+    
+    return result
