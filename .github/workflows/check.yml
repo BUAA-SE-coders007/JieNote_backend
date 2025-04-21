@@ -25,6 +25,16 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -40,6 +50,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Check FastAPI Server
+        env:
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level warning &
           sleep 5
