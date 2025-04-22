@@ -76,6 +76,7 @@ class Note(Base):
     __tablename__ = 'notes'
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    title = Column(String(100), nullable=False)
     content = Column(Text)  # 将 content 字段类型改为 Text，以支持存储大量文本
     article_id = Column(Integer, ForeignKey('articles.id'))
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
