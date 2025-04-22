@@ -4,13 +4,15 @@ from pydantic import BaseModel
 class NoteCreate(BaseModel):
     article_id: int
     content: str
+    title: str
 
 class NoteDelete(BaseModel):
     id: int
 
 class NoteUpdate(BaseModel):
     id: int
-    content: str
+    content: str | None = None
+    title: str | None = None
 
 class NoteFind(BaseModel):
     id: int | None = None
@@ -20,6 +22,7 @@ class NoteFind(BaseModel):
 
 class NoteResponse(BaseModel):
     id: int
+    title: str
     content: str
     article_id: int
     create_time: datetime 
