@@ -94,3 +94,15 @@ class Tag(Base):
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     article = relationship('Article', back_populates='tags')
+
+class ArticleDB(Base):
+    __tablename__ = 'articleDB'
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+
+    title = Column(String(200), nullable=False)
+    url = Column(String(200), nullable=False)
+    author = Column(String(100), nullable=False)
+    
+    create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
+    update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
