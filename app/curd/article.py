@@ -71,32 +71,12 @@ async def crud_self_folder_to_recycle_bin(folder_id: int, user_id: int, db: Asyn
     await db.commit()
     await db.refresh(folder)
 
-async def crud_read_article(article_id: int, user_id: int, db: AsyncSession):
+async def crud_read_article(article_id: int, db: AsyncSession):
     query = select(Article).where(Article.id == article_id)
     result = await db.execute(query)
     article = result.scalar_one_or_none()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    folder_id = article.folder_id
-
-    query = select(Folder).where(Folder.id == folder_id)
-    result = await db.execute(query)
-    folder = result.scalar_one_or_none()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder not found")
-    uid = folder.user_id
-    gid = folder.group_id
-
-    if uid:
-        if user_id != uid:
-            raise HTTPException(status_code=403, detail="This is an article of other user")
-    if gid:
-        query = select(user_group).where(user_group.c.user_id == user_id, user_group.c.group_id == gid)
-        result = await db.execute(query)
-        relation = result.first()
-        if not relation:
-            raise HTTPException(status_code=403, detail="This is an article of a group which you don't belong to")
-    
     return article.name
 
 async def crud_import_self_folder(folder_name: str, article_names, user_id: int, db: AsyncSession):
@@ -118,3 +98,20 @@ async def crud_import_self_folder(folder_name: str, article_names, user_id: int,
         result.append(new_article.name)
     
     return result
+
+async def crud_export_self_folder(folder_id: int, db: AsyncSession):
+    query = select(Folder).where(Folder.id == folder_id)
+    result = await db.execute(query)
+    folder = result.scalar_one_or_none()
+    folder_name = folder.name
+
+    query = select(Article).where(Article.folder_id == folder_id, Article.visible == True).order_by(Article.id.desc())
+    result = await db.execute(query)
+    articles = result.scalars().all()
+    article_id = []
+    article_name = []
+    for article in articles:
+        article_id.append(article.id)
+        article_name.append(article.name)
+
+    return folder_name, article_id, article_name

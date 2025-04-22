@@ -1,14 +1,17 @@
 from fastapi import APIRouter, UploadFile, File, Query, Depends, HTTPException, Body
 from fastapi.responses import FileResponse
+from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 import os
 import io
 from zipfile import ZipFile
+import zipfile
+import tempfile
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder
+from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder, crud_export_self_folder
 
 router = APIRouter()
 
@@ -103,17 +106,14 @@ async def annotate_self_article(article_id: int = Query(...), article: UploadFil
     return {"msg": "Article annotated successfully."}
 
 @router.get("/readArticle", response_class=FileResponse)
-async def read_article(article_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    # 获取用户id
-    user_id = user.get("id")
-
+async def read_article(article_id: int = Query(...), db: AsyncSession = Depends(get_db)):
     # 文件路径
     file_path = f"articles/{article_id}.pdf"
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="PDF file not found")
     
     # 查询文件名
-    article_name = await crud_read_article(article_id, user_id, db)
+    article_name = await crud_read_article(article_id, db)
 
     # 返回结果
     return FileResponse(path=file_path, filename=f"{article_name}.pdf", media_type='application/pdf')
@@ -143,3 +143,26 @@ async def import_self_folder(folder_name: str = Query(...), zip: UploadFile = Fi
                 out_file.write(source_file.read())
 
     return {"msg": "Succesfully import articles"}
+
+@router.get("/exportSelfFolder", response_class=FileResponse)
+async def export_self_folder(background_tasks: BackgroundTasks, folder_id: int = Query(...), db: AsyncSession = Depends(get_db)):
+    zip_name, article_ids, article_names = await crud_export_self_folder(folder_id, db)
+            
+    tmp_dir = tempfile.gettempdir()
+    zip_path = os.path.join(tmp_dir, f"{zip_name}.zip")
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for article_id, article_name in zip(article_ids, article_names):
+            pdf_path = os.path.join("articles", f"{article_id}.pdf")
+            arcname = f"{article_name}.pdf"  # 压缩包内的文件名
+            zipf.write(pdf_path, arcname=arcname)
+
+    background_tasks.add_task(os.remove, zip_path)
+
+    return FileResponse(
+        path=zip_path,
+        filename=f"{zip_name}.zip",
+        media_type="application/zip"
+    )
+
+@router
