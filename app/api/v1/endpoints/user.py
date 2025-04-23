@@ -7,14 +7,17 @@ from app.utils.auth import get_current_user
 from passlib.context import CryptContext
 import os
 from uuid import uuid4
-
+from typing import Optional
 router = APIRouter()
 
 # update current user
 @router.put("", response_model=dict)
 async def update_current_user(
-    username: str = Form(None), 
-    avatar: UploadFile = File(None), 
+    username: Optional[str] = Form(None),
+    avatar: Optional[UploadFile] = File(None),
+    address: Optional[str] = Form(None),
+    university: Optional[str] = Form(None),
+    introduction: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db), 
     current_user: dict = Depends(get_current_user)
 ):
@@ -48,8 +51,11 @@ async def update_current_user(
                 
 
         update_user_response = UserUpdate(
-            username=username or db_user.username,
-            avatar=avatar_url if avatar_url else db_user.avatar
+            username=username,
+            avatar=avatar_url if avatar_url else db_user.avatar,
+            address=address,
+            university=university,
+            introduction=introduction
         )
         await update_user_in_db(db, update_user_response, db_user.id)
         return {"msg": "User updated successfully"}
@@ -73,3 +79,21 @@ async def change_password(
 
     await update_user_password(db, db_user.id, pwd_context.hash(password_update.new_password))
     return {"msg": "Password changed successfully"}
+
+@router.get("", response_model=dict)
+async def get_user_id(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    db_user = await get_user_by_email(db, current_user["email"])
+#    返回用户所有信息
+    return {
+        "id": db_user.id,
+        "username": db_user.username,
+        "email": db_user.email,
+        "avatar": db_user.avatar,
+        "address": db_user.address,
+        "university": db_user.university,
+        "introduction": db_user.introduction,
+        "create_time": db_user.create_time
+    }

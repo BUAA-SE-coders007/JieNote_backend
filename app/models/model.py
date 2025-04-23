@@ -19,6 +19,10 @@ class User(Base):
     username = Column(String(30), index=True, nullable=False)
     password = Column(String(60), nullable=False)
     avatar = Column(String(100))
+    address = Column(String(100))
+    university = Column(String(100))
+    introduction = Column(Text)
+    create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     groups = relationship('Group', secondary=user_group, back_populates='users')
     folders = relationship('Folder', back_populates='user')
 

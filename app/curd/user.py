@@ -22,6 +22,12 @@ async def update_user_in_db(db: AsyncSession, user_update: UserUpdate, user_id: 
     if user:
         if user_update.username:
             user.username = user_update.username
+        if user_update.address:
+            user.address = user_update.address
+        if user_update.university:
+            user.university = user_update.university
+        if user_update.introduction:
+            user.introduction = user_update.introduction
         user.avatar = user_update.avatar
         await db.commit()
         await db.refresh(user)
