@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-import jwt
+from jose import jwt, JWTError, ExpiredSignatureError
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.header import Header
@@ -13,6 +13,7 @@ from email.utils import formataddr
 from app.schemas.auth import UserCreate, UserLogin, UserSendCode, ReFreshToken
 from app.core.config import settings
 from app.curd.user import get_user_by_email, create_user
+from app.curd.article import crud_self_create_folder
 from app.utils.get_db import get_db
 from app.utils.redis import get_redis_client
 
@@ -59,7 +60,8 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     hashed_password = pwd_context.hash(user.password)
-    await create_user(db, user.email, user.username, hashed_password)
+    new_user = await create_user(db, user.email, user.username, hashed_password)
+    await crud_self_create_folder("", new_user.id, db)
     return {"msg": "User registered successfully"}
 
 @router.post("/login", response_model=dict)
@@ -96,9 +98,9 @@ async def refresh_token(refresh_token: ReFreshToken):
             data={"sub": payload["sub"], "id": payload["id"]}, expires_delta=access_token_expires
         )
         return {"access_token": access_token}
-    except jwt.ExpiredSignatureError:
+    except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
-    except Exception:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 # 发送验证码
