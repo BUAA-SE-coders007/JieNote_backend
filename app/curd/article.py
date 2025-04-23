@@ -1,6 +1,4 @@
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from sqlalchemy.future import select
 from app.models.model import User, Group, Folder, Article, Note, Tag, user_group
 
@@ -37,36 +35,24 @@ async def crud_self_create_folder(name: str, user_id: int, db: AsyncSession):
     await db.commit()
     await db.refresh(new_folder)
 
-async def crud_self_article_to_recycle_bin(article_id: int, user_id: int, db: AsyncSession):
-    # 1. 异步查询 article，并加载 folder 关系
-    query = select(Article).options(selectinload(Article.folder)).where(Article.id == article_id)
+async def crud_self_article_to_recycle_bin(article_id: int, db: AsyncSession):
+    # 查询 article
+    query = select(Article).where(Article.id == article_id)
     result = await db.execute(query)
     article = result.scalar_one_or_none()
-    if not article:
-        raise HTTPException(status_code=404, detail="Article Not Found")
 
-    # 2. 检查是否是自己个人的article
-    if article.folder.user_id != user_id:
-        raise HTTPException(status_code=403, detail="This is not your own article")
-
-    # 3. 修改 visible 字段
+    # 修改 visible 字段
     article.visible = False
     await db.commit()
     await db.refresh(article)
 
-async def crud_self_folder_to_recycle_bin(folder_id: int, user_id: int, db: AsyncSession):
-    # 1. 异步查询 folder
+async def crud_self_folder_to_recycle_bin(folder_id: int,  db: AsyncSession):
+    # 查询 folder
     query = select(Folder).where(Folder.id == folder_id)
     result = await db.execute(query)
     folder = result.scalar_one_or_none()
-    if not folder:
-        raise HTTPException(status_code=404, detail="Folder Not Found")
-    
-    # 2. 检查是否是自己个人的folder
-    if folder.user_id != user_id:
-        raise HTTPException(status_code=403, detail="This is not your own folder")
-    
-    # 3. 修改 visible 字段
+
+    # 修改 visible 字段
     folder.visible = False
     await db.commit()
     await db.refresh(folder)
@@ -75,8 +61,6 @@ async def crud_read_article(article_id: int, db: AsyncSession):
     query = select(Article).where(Article.id == article_id)
     result = await db.execute(query)
     article = result.scalar_one_or_none()
-    if not article:
-        raise HTTPException(status_code=404, detail="Article not found")
     return article.name
 
 async def crud_import_self_folder(folder_name: str, article_names, user_id: int, db: AsyncSession):
@@ -89,10 +73,10 @@ async def crud_import_self_folder(folder_name: str, article_names, user_id: int,
     await db.refresh(new_folder)
 
     # 新建文献
-    for article_name in article_names:
-        new_article = Article(name=article_name, folder_id=new_folder.id)
-        db.add(new_article)
-        await db.commit()
+    new_articles = [Article(name=article_name, folder_id=new_folder.id) for article_name in article_names]
+    db.add_all(new_articles)
+    await db.commit()
+    for new_article in new_articles:
         await db.refresh(new_article)
         result.append(new_article.id)
         result.append(new_article.name)
@@ -115,3 +99,22 @@ async def crud_export_self_folder(folder_id: int, db: AsyncSession):
         article_name.append(article.name)
 
     return folder_name, article_id, article_name
+
+async def crud_create_tag(article_id: int, content: str, db: AsyncSession):
+    new_tag = Tag(article_id=article_id, content=content)
+    db.add(new_tag)
+    await db.commit()
+    await db.refresh(new_tag)
+
+async def crud_delete_tag(tag_id: int, db: AsyncSession):
+    query = select(Tag).filter(Tag.id == tag_id)
+    result = await db.execute(query)
+    tag = result.scalar_one_or_none()
+    await db.delete(tag)
+    await db.commit()
+
+async def crud_get_article_tags(article_id: int, db: AsyncSession):
+    query = select(Tag).filter(Tag.article_id == article_id)
+    result = await db.execute(query)
+    tags = result.scalars().all()
+    return tags

@@ -27,10 +27,11 @@ class Group(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     leader = Column(Integer)
-    users = relationship('User', secondary=user_group, back_populates='groups')
-    folders = relationship('Folder', back_populates='group')
+    name = Column(String(30), nullable=False)
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
+    users = relationship('User', secondary=user_group, back_populates='groups')
+    folders = relationship('Folder', back_populates='group')
 
 class Folder(Base):
     __tablename__ = 'folders'
@@ -61,14 +62,14 @@ class Article(Base):
     __tablename__ = 'articles'
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String(30), nullable=False)
+    name = Column(Text, nullable=False)
     folder_id = Column(Integer, ForeignKey('folders.id'))
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
 
     visible = Column(Boolean, default=True, nullable=False) # 是否可见 False表示在回收站中
     
-    folder = relationship('Folder', back_populates='articles')
+    folder = relationship('Folder', back_populates='articles', lazy='selectin')
     notes = relationship('Note', back_populates='article')
     tags = relationship('Tag', back_populates='article')
 
