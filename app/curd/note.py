@@ -17,7 +17,7 @@ async def delete_note_in_db(note_id: int, db: AsyncSession):
     note = result.scalar_one_or_none()
     if note:
         note.visible = False  # 将 visible 设置为 False，表示删除
-        await db.execute(note)
+        # await db.execute(note)
         await db.commit()
     return note
 
