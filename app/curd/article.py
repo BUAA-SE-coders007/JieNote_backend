@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import select, delete
 from app.models.model import User, Group, Folder, Article, Note, Tag, user_group
 
 async def crud_upload_to_self_folder(name: str, folder_id: int, db: AsyncSession):
@@ -114,7 +114,38 @@ async def crud_delete_tag(tag_id: int, db: AsyncSession):
     await db.commit()
 
 async def crud_get_article_tags(article_id: int, db: AsyncSession):
-    query = select(Tag).filter(Tag.article_id == article_id)
+    query = select(Tag).where(Tag.article_id == article_id).order_by(Tag.id.asc())
     result = await db.execute(query)
     tags = result.scalars().all()
     return tags
+
+async def crud_all_tags_order(article_id: int, tag_contents, db: AsyncSession):
+    query = delete(Tag).where(Tag.article_id == article_id)
+    await db.execute(query)
+    await db.commit()
+
+    new_tags = []
+    for i in range(0, len(tag_contents)):
+        new_tags.append(Tag(content=tag_contents[i], article_id=article_id))
+    db.add_all(new_tags)
+    await db.commit()
+    for i in range(0, len(new_tags)):
+        await db.refresh(new_tags[i])
+
+async def crud_change_folder_name(folder_id: int, folder_name: str, db: AsyncSession):
+    query = select(Folder).where(Folder.id == folder_id)
+    result = await db.execute(query)
+    folder = result.scalar_one_or_none()
+
+    folder.name = folder_name
+    await db.commit()
+    await db.refresh(folder)
+
+async def crud_change_article_name(article_id: int, article_name: str, db: AsyncSession):
+    query = select(Article).where(Article.id == article_id)
+    result = await db.execute(query)
+    article = result.scalar_one_or_none()
+
+    article.name = article_name
+    await db.commit()
+    await db.refresh(article)

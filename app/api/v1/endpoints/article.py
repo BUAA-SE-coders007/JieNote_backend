@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Query, Depends, HTTPException, 
 from fastapi.responses import FileResponse
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 import os
 import io
 from zipfile import ZipFile
@@ -11,7 +11,7 @@ import tempfile
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags
+from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags, crud_all_tags_order, crud_change_folder_name, crud_change_article_name
 from app.schemas.article import SelfCreateFolder
 
 router = APIRouter()
@@ -130,7 +130,7 @@ async def import_self_folder(folder_name: str = Query(...), zip: UploadFile = Fi
             with open(target_path, "wb") as out_file:
                 out_file.write(source_file.read())
 
-    return {"msg": "Succesfully import articles"}
+    return {"msg": "Successfully import articles"}
 
 @router.get("/exportSelfFolder", response_class=FileResponse)
 async def export_self_folder(background_tasks: BackgroundTasks, folder_id: int = Query(...), db: AsyncSession = Depends(get_db)):
@@ -158,7 +158,7 @@ async def create_tag(article_id: int = Body(...), content: str = Body(...), db: 
     if len(content) > 30:
         raise HTTPException(status_code=405, detail="Invalid tag content, longer than 30")
     await crud_create_tag(article_id, content, db)
-    return {"msg": "Tag Created Succesfully"}
+    return {"msg": "Tag Created Successfully"}
 
 @router.delete("/deleteTag", response_model="dict")
 async def delete_tag(tag_id: int = Query(...), db: AsyncSession = Depends(get_db)):
@@ -170,3 +170,23 @@ async def get_article_tags(article_id: int = Query(...), db: AsyncSession = Depe
     tags = await crud_get_article_tags(article_id, db)
     result = [{"tag_id": tag.id, "tag_content": tag.content} for tag in tags]
     return {"result": result}
+
+@router.post("/allTagsOrder", response_model="dict")
+async def all_tags_order(article_id: int = Body(...), tag_contents: List[str] = Body(...), db: AsyncSession = Depends(get_db)):
+    for tag_content in tag_contents:
+        if len(tag_content) > 30:
+            raise HTTPException(status_code=405, detail="Invalid tag content existed, longer than 30")
+    await crud_all_tags_order(article_id, tag_contents, db)
+    return {"msg": "Tags and order changed successfully"}
+
+@router.post("/changeFolderName", response_model="dict")
+async def change_folder_name(folder_id: int = Body(...), folder_name: str = Body(...), db: AsyncSession = Depends(get_db)):
+    if folder_name == "" or len(folder_name) > 30:
+        raise HTTPException(status_code=405, detail="Invalid folder name, empty or longer than 30")
+    await crud_change_folder_name(folder_id, folder_name, db)
+    return {"msg": "Folder name changed successfully"}
+
+@router.post("/changeArticleName", response_model="dict")
+async def change_article_name(article_id: int = Body(...), article_name: str = Body(...), db: AsyncSession = Depends(get_db)):
+    await crud_change_article_name(article_id, article_name, db)
+    return {"msg": "Article name changed successfully"}
