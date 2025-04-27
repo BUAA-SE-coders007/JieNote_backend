@@ -1,5 +1,6 @@
 import redis
 import time
+import os
 
 redis_client = None  # 全局 Redis 客户端变量
 
@@ -13,7 +14,13 @@ def get_redis_client():
         while True:
             try:
                 print("Connecting to Redis...")
-                redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+                redis_client = redis.StrictRedis(
+                    host=os.getenv("REDIS_HOST", "localhost"),
+                    port=int(os.getenv("REDIS_PORT", 6379)),
+                    password=os.getenv("REDIS_PASSWORD", None), 
+                    db=0,
+                    decode_responses=True
+                )
                 redis_client.ping()
                 print("Connected to Redis successfully.")
                 break
