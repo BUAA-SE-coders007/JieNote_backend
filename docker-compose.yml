@@ -1,0 +1,72 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=${REDIS_DB}
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    restart: always
+    networks:
+      - redis_network  # 确保与 Redis 使用相同的网络
+
+  # redis:
+    # image: redis:7.0
+    # container_name: redis
+    # ports:
+    #   - "6379:6379"
+
+  redis:
+    image: redis:7.0
+    container_name: redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - TZ=Asia/Shanghai
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - redis_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "--no-auth-warning",
+          "-a",
+          "${REDIS_PASSWORD}",
+          "ping",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+
+volumes:
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./data/redis
+      o: bind
+
+networks:
+  redis_network:
+    driver: bridge
+
