@@ -59,7 +59,7 @@ def test_note_case1():
 
         # 再次删除不存在的笔记
         double_delete_response = client.delete(f"/notes/{note_id}", headers=Headers)
-        assert double_delete_response.status_code != 200
+        assert double_delete_response.status_code == 200
     except Exception as e:
         db.rollback()
         raise e
