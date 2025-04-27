@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, cast, Date
+from datetime import datetime, timedelta
 from app.models.model import Note
 from app.schemas.note import NoteCreate, NoteUpdate, NoteFind, NoteResponse
 
@@ -73,3 +74,34 @@ async def find_notes_title_in_db(note_find: NoteFind, db: AsyncSession):
     result = await db.execute(stmt)
     notes = [row[0] for row in result.fetchall()]
     return notes, total_count
+
+async def find_recent_notes_in_db(db: AsyncSession):
+    """
+    返回近7天内创建的笔记的数目和对应日期
+    """
+    # 获取当前日期和7天前的日期
+    today = datetime.now().date()
+    seven_days_ago = today - timedelta(days=6)
+
+    # 查询近7天内的笔记数目，按日期分组
+    stmt = (
+        select(
+            cast(Note.create_time, Date).label("date"),  # 按日期分组
+            func.count(Note.id).label("count")          # 统计每日期的笔记数
+        )
+        .where(
+            Note.create_time >= seven_days_ago,         # 筛选近7天的笔记
+            Note.create_time <= today                  # 包括今天
+        )
+        .group_by(cast(Note.create_time, Date))         # 按日期分组
+        .order_by(cast(Note.create_time, Date))         # 按日期排序
+    )
+
+    # 执行查询
+    result = await db.execute(stmt)
+    data = result.fetchall()
+
+    # 格式化结果为字典列表
+    recent_notes = [{"date": row.date, "count": row.count} for row in data]
+
+    return recent_notes

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.note import NoteCreate, NoteUpdate, NoteFind
 from app.utils.get_db import get_db
-from app.curd.note import create_note_in_db, delete_note_in_db, update_note_in_db, find_notes_in_db, find_notes_title_in_db
+from app.curd.note import create_note_in_db, delete_note_in_db, update_note_in_db, find_notes_in_db, find_notes_title_in_db, find_recent_notes_in_db
 from typing import Optional
 
 router = APIRouter()
@@ -50,5 +50,13 @@ async def get_notes_title(note_find: NoteFind = Depends(), db: AsyncSession = De
             "page": note_find.page,
             "page_size": note_find.page_size
         },
+        "notes": notes
+    }
+
+
+@router.get("/recent", response_model=dict)
+async def get_recent_notes(db: AsyncSession = Depends(get_db)):
+    notes = await find_recent_notes_in_db(db)
+    return {
         "notes": notes
     }
