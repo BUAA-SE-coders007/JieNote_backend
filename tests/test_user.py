@@ -93,6 +93,11 @@ def test_user_case2():
             "password": "654321"
         })
         assert login_response.status_code == 200
+
+        token = login_response.json().get('access_token')
+        if token is None:
+            raise ValueError("Failed to get access_token from login response")
+        Headers = {"Authorization": f"Bearer {token}"}
         # 还原密码
         restore_response = client.post("/user/password", json={
             "old_password": "654321",
