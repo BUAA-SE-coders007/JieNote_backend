@@ -50,11 +50,6 @@ jobs:
           pip install -r requirements.txt
 
       - name: Check FastAPI Server
-        env:
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          REDIS_PASSWORD: OKredis
-          REDIS_DB: 0
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level warning &
           sleep 5
