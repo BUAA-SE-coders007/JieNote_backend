@@ -1,5 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
+from sqlalchemy import func, cast, Date
+from datetime import datetime, timedelta
 from app.models.model import User, Group, Folder, Article, Note, Tag, user_group
 
 async def crud_upload_to_self_folder(name: str, folder_id: int, db: AsyncSession):
@@ -149,3 +151,36 @@ async def crud_change_article_name(article_id: int, article_name: str, db: Async
     article.name = article_name
     await db.commit()
     await db.refresh(article)
+
+async def crud_article_statistic(db: AsyncSession):
+    # 获取明天日期和7天前的日期
+    tomorrow = datetime.now().date() + timedelta(days=1)
+    seven_days_ago = datetime.now().date() - timedelta(days=6)
+
+    # 查询近7天内的笔记数目，按日期分组
+    query = (
+        select(
+            cast(Article.create_time, Date).label("date"),  # 按日期分组
+            func.count(Article.id).label("count")           # 统计每日期的笔记数
+        )
+        .where(
+            Article.create_time >= seven_days_ago,          # 大于等于7天前的0点
+            Article.create_time < tomorrow                  # 小于明天0点
+        )
+        .group_by(cast(Article.create_time, Date))          # 按日期分组
+        .order_by(cast(Article.create_time, Date))          # 按日期排序
+    )
+
+    # 执行查询
+    result = await db.execute(query)
+    data = result.fetchall()
+
+    # 格式化结果为字典列表
+    articles = [{"date": row.date, "count": row.count} for row in data]
+
+    # 若某日期没有记录，则为0
+    for i in range(0, 7):
+        if i == len(articles) or articles[i].get("date") != seven_days_ago + timedelta(days=i):
+            articles.insert(i, {"date": seven_days_ago + timedelta(days=i), "count": 0})
+
+    return articles

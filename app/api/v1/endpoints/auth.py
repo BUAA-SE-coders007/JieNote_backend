@@ -13,7 +13,7 @@ from email.utils import formataddr
 from app.schemas.auth import UserCreate, UserLogin, UserSendCode, ReFreshToken
 from app.core.config import settings
 from app.curd.user import get_user_by_email, create_user
-from app.curd.article import crud_self_create_folder
+from app.curd.article import crud_self_create_folder, crud_article_statistic
 from app.utils.get_db import get_db
 from app.utils.redis import get_redis_client
 
@@ -147,3 +147,8 @@ async def send_code(user_send_code: UserSendCode):
 
     except aiosmtplib.SMTPException as e:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    
+@router.get("/articleStatistic", response_model="dict")
+async def article_statistic(db: AsyncSession = Depends(get_db)):
+    articles = await crud_article_statistic(db)
+    return {"articles": articles}
