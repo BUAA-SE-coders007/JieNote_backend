@@ -16,7 +16,7 @@ class Settings:
     SENDER_EMAIL : str = "jienote_buaa@163.com"
     SENDER_PASSWORD: str = os.getenv("SENDER_PASSWORD", "default_password") # 发件人邮箱密码
     KIMI_API_KEY: str = os.getenv("KIMI_API_KEY", "default_kimi_api_key") # KIMI API密钥
-    UPLOAD_FOLDER: str = "/lhcos_data/acticleDB"
+    UPLOAD_FOLDER: str = "/lhcos-data/acticleDB"
 
 
 settings = Settings()
