@@ -21,6 +21,10 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
+    - name: Add server to known_hosts
+      run: |
+        ssh-keyscan -H jienote.top >> ~/.ssh/known_hosts
+
     - name: Sync Code to Server
       run: |
         rsync -avz --delete \
