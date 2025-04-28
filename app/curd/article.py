@@ -156,8 +156,6 @@ async def crud_article_statistic(db: AsyncSession):
     # 获取明天日期和7天前的日期
     tomorrow = datetime.now().date() + timedelta(days=1)
     seven_days_ago = datetime.now().date() - timedelta(days=6)
-    print(tomorrow)
-    print(seven_days_ago)
 
     # 查询近7天内的笔记数目，按日期分组
     query = (
