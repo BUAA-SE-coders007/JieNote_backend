@@ -1,7 +1,6 @@
 name: Deploy FastAPI Backend
 
 on:
-  push:
   pull_request:
     branches:
       - main
