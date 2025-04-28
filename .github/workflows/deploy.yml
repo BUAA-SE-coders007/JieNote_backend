@@ -1,0 +1,43 @@
+name: Deploy FastAPI Backend
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+
+    - name: Add server to known_hosts
+      run: |
+        ssh-keyscan -H jienote.top >> ~/.ssh/known_hosts
+
+    - name: Sync Code to Server
+      run: |
+        rsync -avz --delete \
+          --exclude '.git' \
+          --exclude '.github' \
+          ./ \
+          ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }}:${{ secrets.REMOTE_PATH }}
+
+    - name: Build and Restart Docker on Server
+      run: |
+        ssh ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }} << 'EOF'
+          cd ${{ secrets.REMOTE_PATH }}
+          cd ..
+          docker-compose down
+          docker-compose build
+          docker-compose up -d
+        EOF
