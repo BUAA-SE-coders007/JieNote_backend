@@ -16,6 +16,7 @@ from app.curd.user import get_user_by_email, create_user
 from app.curd.article import crud_self_create_folder, crud_article_statistic
 from app.utils.get_db import get_db
 from app.utils.redis import get_redis_client
+from app.curd.note import find_recent_notes_in_db
 
 router = APIRouter()
 
@@ -152,3 +153,10 @@ async def send_code(user_send_code: UserSendCode):
 async def article_statistic(db: AsyncSession = Depends(get_db)):
     articles = await crud_article_statistic(db)
     return {"articles": articles}
+
+@router.get("/recent", response_model=dict)
+async def get_recent_notes(db: AsyncSession = Depends(get_db)):
+    notes = await find_recent_notes_in_db(db)
+    return {
+        "notes": notes
+    }

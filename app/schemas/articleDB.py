@@ -5,6 +5,7 @@ class UploadArticle(BaseModel):
     title: str
     author: str
     url: str
+    file_path: str
 
 class GetArticle(BaseModel):
     id: int | None = None
@@ -20,6 +21,7 @@ class GetResponse(BaseModel):
     url: str
     create_time: datetime 
     update_time: datetime 
+    file_path: str
 
     class Config:
         from_attributes = True

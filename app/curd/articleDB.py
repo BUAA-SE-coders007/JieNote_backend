@@ -8,7 +8,7 @@ async def create_article_in_db(db: AsyncSession, upload_article: UploadArticle):
     """
     Create a new article in the database.
     """
-    article =ArticleDB(title=upload_article.title, url=upload_article.url, author=upload_article.author)
+    article =ArticleDB(title=upload_article.title, url=upload_article.url, author=upload_article.author, file_path=upload_article.file_path)
     db.add(article)
     await db.commit()
     await db.refresh(article)
@@ -37,3 +37,10 @@ async def get_article_in_db(db: AsyncSession, get_article: GetArticle):
         
     return [GetResponse.model_validate(article) for article in articles], total_count
     
+async def get_article_in_db_by_id(db: AsyncSession, article_id: int):
+    """
+    Get an article by its ID.
+    """
+    result = await db.execute(select(ArticleDB).where(ArticleDB.id == article_id))
+    article = result.scalars().first()
+    return article
