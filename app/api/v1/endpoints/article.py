@@ -82,6 +82,7 @@ async def self_folder_to_recycle_bin(folder_id: int = Query(...), db: AsyncSessi
 @router.post("/annotateSelfArticle", response_model="dict")
 async def annotate_self_article(article_id: int = Query(...), article: UploadFile = File(...)):
     # 将新文件存储到云存储位置
+    os.makedirs("/lhcos-data", exist_ok=True)
     save_path = os.path.join("/lhcos-data", f"{article_id}.pdf")
     with open(save_path, "wb") as f:
         content = await article.read()
@@ -117,6 +118,7 @@ async def import_self_folder(folder_name: str = Query(...), zip: UploadFile = Fi
     result = await crud_import_self_folder(folder_name, article_names, user_id, db)
 
     # 存储文献到云存储
+    os.makedirs("/lhcos-data", exist_ok=True)
     for i in range(0, len(result), 2):
         article_id = result[i]
         article_name = result[i + 1]
