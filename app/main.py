@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from app.routers.router import include_routers
 from fastapi_pagination import add_pagination
 from loguru import logger
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
@@ -28,3 +29,12 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     logger.info(f"Response status: {response.status_code}")
     return response
+
+# 配置 CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许的前端来源
+    allow_credentials=True,                  # 允许发送凭据（如 Cookies 或 Authorization 头）
+    allow_methods=["*"],                     # 允许的 HTTP 方法
+    allow_headers=["*"],                     # 允许的请求头
+)
