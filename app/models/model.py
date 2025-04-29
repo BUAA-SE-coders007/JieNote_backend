@@ -115,7 +115,7 @@ class ArticleDB(Base):
 
     title = Column(String(200), nullable=False)
     url = Column(String(200), nullable=False)
-    author = Column(String(100), nullable=False)
+    author = Column(String(300), nullable=False)
     file_path = Column(String(200), nullable=False)
     
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
