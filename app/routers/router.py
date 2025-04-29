@@ -6,6 +6,7 @@ from app.api.v1.endpoints.user import router as user_router
 from app.api.v1.endpoints.aichat import router as aichat_router
 from app.api.v1.endpoints.article import router as article_router
 from app.api.v1.endpoints.articleDB import router as articleDB_router
+from app.api.v1.endpoints.group import router as group_router
 
 def include_auth_router(app):
     app.include_router(auth_router, prefix="/public", tags=["auth"])
@@ -25,6 +26,9 @@ def include_article_router(app):
 def include_articleDB_router(app):
     app.include_router(articleDB_router, prefix="/database", tags=["articleDB"], dependencies=[Depends(get_current_user)])
 
+def include_group_router(app):
+    app.include_router(group_router, prefix="/group", tags=["group"], dependencies=[Depends(get_current_user)])
+
 def include_routers(app):
     include_auth_router(app)
     include_note_router(app)
@@ -32,3 +36,4 @@ def include_routers(app):
     include_aichat_router(app)
     include_article_router(app)
     include_articleDB_router(app)
+    include_group_router(app)

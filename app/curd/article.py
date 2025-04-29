@@ -13,23 +13,31 @@ async def crud_upload_to_self_folder(name: str, folder_id: int, db: AsyncSession
 
 async def crud_get_self_folders(user_id: int, page_number: int, page_size: int, db: AsyncSession):
     query = select(Folder).where(Folder.user_id == user_id, Folder.visible == True).order_by(Folder.id.desc())
+    count_query = select(func.count()).select_from(query.subquery())
+    count_result = await db.execute(count_query)
+    total_num = count_result.scalar()
+
     if page_number and page_size:
         offset = (page_number - 1) * page_size
         query = query.offset(offset).limit(page_size)
-
     result = await db.execute(query)
     folders = result.scalars().all()
-    return folders
+
+    return total_num, folders
 
 async def crud_get_articles_in_folder(folder_id: int, page_number: int, page_size: int, db: AsyncSession):
     query = select(Article).where(Article.folder_id == folder_id, Article.visible == True).order_by(Article.id.desc())
+    count_query = select(func.count()).select_from(query.subquery())
+    count_result = await db.execute(count_query)
+    total_num = count_result.scalar()
+
     if page_number and page_size:
         offset = (page_number - 1) * page_size
         query = query.offset(offset).limit(page_size)
-    
     result = await db.execute(query)
     articles = result.scalars().all()
-    return articles
+
+    return total_num, articles
 
 async def crud_self_create_folder(name: str, user_id: int, db: AsyncSession):
     new_folder = Folder(name=name, user_id=user_id)
