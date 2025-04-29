@@ -40,19 +40,16 @@ async def get_self_folders(page_number: Optional[int] = Query(None, ge=1), page_
     # 获取用户id
     user_id = user.get("id")
 
-    # 数据库查询
-    folders = await crud_get_self_folders(user_id, page_number, page_size, db)
-
-    # 返回结果
+    total_num, folders = await crud_get_self_folders(user_id, page_number, page_size, db)
     result = [{"folder_id": folder.id, "folder_name": folder.name} for folder in folders]
-    return {"result": result}
+    return {"total_num": total_num, "result": result}
 
 @router.get("/getArticlesInFolder", response_model="dict")
 async def get_articles_in_folder(folder_id: int = Query(...), page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), 
                      db: AsyncSession = Depends(get_db)):
-    articles = await crud_get_articles_in_folder(folder_id, page_number, page_size, db)
+    total_num, articles = await crud_get_articles_in_folder(folder_id, page_number, page_size, db)
     result = [{"article_id": article.id, "article_name": article.name} for article in articles]
-    return {"result": result}
+    return {"total_num": total_num, "result": result}
 
 @router.post("/selfCreateFolder", response_model="dict")
 async def self_create_folder(model: SelfCreateFolder, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
