@@ -3,6 +3,7 @@ from app.routers.router import include_routers
 from fastapi_pagination import add_pagination
 from loguru import logger
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
 
@@ -38,3 +39,6 @@ app.add_middleware(
     allow_methods=["*"],                     # 允许的 HTTP 方法
     allow_headers=["*"],                     # 允许的请求头
 )
+
+# 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
