@@ -141,8 +141,8 @@ async def send_code(user_send_code: UserSendCode):
             use_tls=True,
         )
 
-        redis_client.setex(f"email:{user_send_code.email}:code", ACCESS_TOKEN_EXPIRE_MINUTES * 60, code)
-        redis_client.setex(f"email:{user_send_code.email}:time", ACCESS_TOKEN_EXPIRE_MINUTES * 60, int(time.time()))
+        redis_client.setex(f"email:{user_send_code.email}:code", settings.CODE_EXPIRATION_TIME, code)
+        redis_client.setex(f"email:{user_send_code.email}:time", settings.CODE_EXPIRATION_TIME, int(time.time()))
 
         return {"msg": "Verification code sent"}
 

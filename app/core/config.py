@@ -17,6 +17,7 @@ class Settings:
     SENDER_PASSWORD: str = os.getenv("SENDER_PASSWORD", "default_password") # 发件人邮箱密码
     KIMI_API_KEY: str = os.getenv("KIMI_API_KEY", "default_kimi_api_key") # KIMI API密钥
     UPLOAD_FOLDER: str = "/lhcos-data/acticleDB"
+    CODE_EXPIRATION_TIME: int = 300  # 验证码过期时间（秒）
 
 
 settings = Settings()
