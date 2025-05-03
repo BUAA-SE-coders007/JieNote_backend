@@ -41,10 +41,10 @@ async def update_current_user(
                 f.write(await avatar_file.read())
 
             # 生成 URL 路径
-            avatar_url = f"/app/static/avatar/{unique_filename}"
+            avatar_url = f"/static/avatar/{unique_filename}"
 
             # 删除旧的头像文件
-            if db_user.avatar and db_user.avatar != "/app/static/avatar/default.png":
+            if db_user.avatar and db_user.avatar != "/static/avatar/default.png":
                 old_avatar_path = db_user.avatar.lstrip("/")  # 去掉开头的斜杠
                 if os.path.exists(old_avatar_path):
                     os.remove(old_avatar_path)
