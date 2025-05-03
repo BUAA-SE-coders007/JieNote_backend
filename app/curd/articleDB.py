@@ -32,8 +32,9 @@ async def get_article_in_db(db: AsyncSession, get_article: GetArticle):
         )
         articles = result.scalars().all()
     else:
-        articles = []
-        total_count = 0
+        result = await db.execute(select(ArticleDB))
+        articles = result.scalars().all()
+        total_count = len(articles)
         
     return [GetResponse.model_validate(article) for article in articles], total_count
     
