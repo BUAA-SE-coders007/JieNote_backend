@@ -11,7 +11,7 @@ import tempfile
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags, crud_all_tags_order, crud_change_folder_name, crud_change_article_name, crud_article_statistic
+from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags, crud_all_tags_order, crud_change_folder_name, crud_change_article_name, crud_article_statistic, crud_self_tree
 from app.schemas.article import SelfCreateFolder
 
 router = APIRouter()
@@ -32,7 +32,7 @@ async def upload_to_self_folder(folder_id: int = Query(...), article: UploadFile
         content = await article.read()
         f.write(content)
 
-    return {"msg": "Article created successfully."}
+    return {"msg": "Article created successfully.", "article_id": article_id}
 
 @router.get("/getSelfFolders", response_model="dict")
 async def get_self_folders(page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), 
@@ -61,10 +61,10 @@ async def self_create_folder(model: SelfCreateFolder, db: AsyncSession = Depends
     user_id = user.get("id")
 
     # 数据库插入
-    await crud_self_create_folder(folder_name, user_id, db)
+    folder_id = await crud_self_create_folder(folder_name, user_id, db)
 
     # 返回结果
-    return {"msg": "User Folder Created Successfully"}
+    return {"msg": "User Folder Created Successfully", "folder_id": folder_id}
 
 @router.delete("/selfArticleToRecycleBin", response_model="dict")
 async def self_article_to_recycle_bin(article_id: int = Query(...), db: AsyncSession = Depends(get_db)):
@@ -185,3 +185,9 @@ async def change_folder_name(folder_id: int = Body(...), folder_name: str = Body
 async def change_article_name(article_id: int = Body(...), article_name: str = Body(...), db: AsyncSession = Depends(get_db)):
     await crud_change_article_name(article_id, article_name, db)
     return {"msg": "Article name changed successfully"}
+
+@router.get("/selfTree", response_model="dict")
+async def self_tree(page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    total_folder_num, folders = await crud_self_tree(user_id, page_number, page_size, db)
+    return {"total_folder_num": total_folder_num, "folders": folders}

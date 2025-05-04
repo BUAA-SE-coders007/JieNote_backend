@@ -44,6 +44,7 @@ async def crud_self_create_folder(name: str, user_id: int, db: AsyncSession):
     db.add(new_folder)
     await db.commit()
     await db.refresh(new_folder)
+    return new_folder.id
 
 async def crud_self_article_to_recycle_bin(article_id: int, db: AsyncSession):
     # 查询 article
@@ -192,3 +193,31 @@ async def crud_article_statistic(db: AsyncSession):
             articles.insert(i, {"date": seven_days_ago + timedelta(days=i), "count": 0})
 
     return articles
+
+async def crud_self_tree(user_id: int, page_number: int, page_size: int, db: AsyncSession):
+    query = select(Folder).where(Folder.user_id == user_id, Folder.visible == True).order_by(Folder.id.desc())
+    count_query = select(func.count()).select_from(query.subquery())
+    count_result = await db.execute(count_query)
+    total_num = count_result.scalar()
+
+    if page_number and page_size:
+        offset = (page_number - 1) * page_size
+        query = query.offset(offset).limit(page_size)
+    result = await db.execute(query)
+    folders = result.scalars().all()
+
+    folder_array = [{"folder_id": folder.id, "folder_name": folder.name, "articles": []} for folder in folders]
+    for i in range(len(folder_array)):
+        query = select(Article).where(Article.folder_id == folder_array[i].get("folder_id"), Article.visible == True).order_by(Article.id.desc())
+        result = await db.execute(query)
+        articles = result.scalars().all()
+        article_array = [{"article_id": article.id, "article_name": article.name, "notes": []} for article in articles]
+        folder_array[i]["articles"] = article_array
+        for j in range(len(article_array)):
+            query = select(Note).where(Note.article_id == article_array[j].get("article_id"), Note.visible == True).order_by(Note.id.desc())
+            result = await db.execute(query)
+            notes = result.scalars().all()
+            note_array = [{"note_id": note.id, "note_title": note.title} for note in notes]
+            article_array[j]["notes"] = note_array
+    
+    return total_num, folder_array
