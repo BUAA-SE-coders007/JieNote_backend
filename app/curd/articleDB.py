@@ -45,3 +45,11 @@ async def get_article_in_db_by_id(db: AsyncSession, article_id: int):
     result = await db.execute(select(ArticleDB).where(ArticleDB.id == article_id))
     article = result.scalars().first()
     return article
+
+async def get_article_info_in_db_by_id(db: AsyncSession, article_id: int):
+    """
+    Get an article by its ID.
+    """
+    result = await db.execute(select(ArticleDB).where(ArticleDB.id == article_id))
+    article = result.scalars().first()
+    return article.file_path, article.title

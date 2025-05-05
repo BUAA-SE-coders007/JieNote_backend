@@ -2,12 +2,13 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, Form, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.get_db import get_db
 from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse
-from app.curd.articleDB import  create_article_in_db, get_article_in_db, get_article_in_db_by_id
+from app.curd.articleDB import  create_article_in_db, get_article_in_db, get_article_in_db_by_id, get_article_info_in_db_by_id
 from app.core.config import settings
 import os
 import uuid
 from fastapi.responses import FileResponse
 from urllib.parse import quote
+from app.curd.article import crud_upload_to_self_folder
 router = APIRouter()
 
 @router.put("/upload", response_model=dict)
@@ -78,3 +79,30 @@ async def download_article(article_id: int, db: AsyncSession = Depends(get_db)):
         filename=quote(download_filename),
         media_type="application/pdf"
     )
+
+@router.put("/copy", response_model=dict)
+async def copy_article(folder_id: int, article_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Copy an article file by its ID to a specified directory.
+    """
+    # 根据 ID 查询文章信息
+    file_path, title = await get_article_info_in_db_by_id(db=db, article_id=article_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    new_article_id = await crud_upload_to_self_folder(name=title, folder_id=folder_id, db=db)
+    
+    # 复制文件到新的目录
+    old_file_path = file_path
+    new_file_path = os.path.join("/lhcos-data", f"{new_article_id}.pdf")
+    try:
+        with open(old_file_path, "rb") as source_file:
+            with open(new_file_path, "wb") as dest_file:
+                dest_file.write(source_file.read())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"msg": "Article copied successfully", "new_article_id": new_article_id}
+
+        
+
+
