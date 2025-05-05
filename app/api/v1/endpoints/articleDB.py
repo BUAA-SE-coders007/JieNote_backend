@@ -39,7 +39,7 @@ async def upload_article(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("", response_model=dict)
+@router.get("/get", response_model=dict)
 async def get_article(get_article: GetArticle = Depends(), db: AsyncSession = Depends(get_db)):
     """
     Get an article from the database.

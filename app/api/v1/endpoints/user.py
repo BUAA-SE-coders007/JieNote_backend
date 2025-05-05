@@ -11,7 +11,7 @@ from typing import Optional
 router = APIRouter()
 
 # update current user
-@router.put("", response_model=dict)
+@router.put("/update", response_model=dict)
 async def update_current_user(
     username: Optional[str] = Form(None),
     avatar: Optional[UploadFile] = File(None),
@@ -80,7 +80,7 @@ async def change_password(
     await update_user_password(db, db_user.id, pwd_context.hash(password_update.new_password))
     return {"msg": "Password changed successfully"}
 
-@router.get("", response_model=dict)
+@router.get("/get", response_model=dict)
 async def get_user_id(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)

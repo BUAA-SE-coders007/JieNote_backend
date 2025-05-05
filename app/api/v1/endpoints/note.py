@@ -7,7 +7,7 @@ from typing import Optional
 
 router = APIRouter()
 
-@router.post("", response_model=dict)
+@router.post("/create", response_model=dict)
 async def create_note(note: NoteCreate, db: AsyncSession = Depends(get_db)):
     new_note = await create_note_in_db(note, db)
     return {"msg": "Note created successfully", "note_id": new_note.id}
@@ -29,7 +29,7 @@ async def update_note(note_id: int, content: Optional[str] = None, title: Option
         raise HTTPException(status_code=404, detail="Note not found")
     return {"msg": "Note updated successfully", "note_id": updated_note.id}
 
-@router.get("", response_model=dict)
+@router.get("/get", response_model=dict)
 async def get_notes(note_find: NoteFind = Depends(), db: AsyncSession = Depends(get_db)):
     notes, total_count = await find_notes_in_db(note_find, db)
     return {
