@@ -211,9 +211,16 @@ async def crud_self_tree(user_id: int, page_number: int, page_size: int, db: Asy
         query = select(Article).where(Article.folder_id == folder_array[i].get("folder_id"), Article.visible == True).order_by(Article.id.desc())
         result = await db.execute(query)
         articles = result.scalars().all()
-        article_array = [{"article_id": article.id, "article_name": article.name, "notes": []} for article in articles]
+        article_array = [{"article_id": article.id, "article_name": article.name, "tags": [], "notes": []} for article in articles]
         folder_array[i]["articles"] = article_array
         for j in range(len(article_array)):
+            # 查找所有tag
+            query = select(Tag).where(Tag.article_id == article_array[j].get("article_id")).order_by(Tag.id.asc())
+            result = await db.execute(query)
+            tags = result.scalars().all()
+            tag_array = [{"tag_id": tag.id, "tag_content": tag.content} for tag in tags]
+            article_array[j]["tags"] = tag_array
+            # 查找所有note
             query = select(Note).where(Note.article_id == article_array[j].get("article_id"), Note.visible == True).order_by(Note.id.desc())
             result = await db.execute(query)
             notes = result.scalars().all()
