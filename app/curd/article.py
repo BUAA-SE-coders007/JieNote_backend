@@ -228,3 +228,49 @@ async def crud_self_tree(user_id: int, page_number: int, page_size: int, db: Asy
             article_array[j]["notes"] = note_array
     
     return total_num, folder_array
+
+async def crud_self_article_statistic(user_id: int, db: AsyncSession):
+    # 查询个人拥有的、未被删除的文献总数
+    query = (
+        select(func.count(Article.id))
+        .join(Folder, Article.folder_id == Folder.id)
+        .where(Folder.user_id == user_id, Folder.visible == True, Article.visible == True)
+    )
+    result = await db.execute(query)
+    article_total_num = result.scalar_one_or_none()
+
+    # 获取明天日期和7天前的日期
+    tomorrow = datetime.now().date() + timedelta(days=1)
+    seven_days_ago = datetime.now().date() - timedelta(days=6)
+
+    # 查询近7天内的笔记数目，按日期分组
+    query = (
+        select(
+            cast(Article.create_time, Date).label("date"),  # 按日期分组
+            func.count(Article.id).label("count")           # 统计每日期的笔记数
+        )
+        .join(Folder, Article.folder_id == Folder.id)
+        .where(
+            Folder.user_id == user_id,
+            Folder.visible == True,
+            Article.visible == True,
+            Article.create_time >= seven_days_ago,          # 大于等于7天前的0点
+            Article.create_time < tomorrow,                 # 小于明天0点
+        )
+        .group_by(cast(Article.create_time, Date))          # 按日期分组
+        .order_by(cast(Article.create_time, Date))          # 按日期排序
+    )
+
+    # 执行查询
+    result = await db.execute(query)
+    data = result.fetchall()
+
+    # 格式化结果为字典列表
+    articles = [{"date": row.date, "count": row.count} for row in data]
+
+    # 若某日期没有记录，则为0
+    for i in range(0, 7):
+        if i == len(articles) or articles[i].get("date") != seven_days_ago + timedelta(days=i):
+            articles.insert(i, {"date": seven_days_ago + timedelta(days=i), "count": 0})
+
+    return article_total_num, articles
