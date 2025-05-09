@@ -18,7 +18,12 @@ router = APIRouter()
 
 @router.post("/uploadToSelfFolder", response_model="dict")
 async def upload_to_self_folder(folder_id: int = Query(...), article: UploadFile = File(...), db: AsyncSession = Depends(get_db)):
-    # 由前端保证上传的为 PDF
+    # 检查上传的必须为 PDF
+    head = await article.read(5)                    # 读取文件的前 5 个字节，用于魔数检测
+    if not head.startswith(b"%PDF-"):
+        raise HTTPException(status_code=405, detail="File uploaded must be a PDF.")
+    await article.seek(0)                           # 重置文件指针位置
+
     # 用文件名（不带扩展名）作为 Article 名称
     name = os.path.splitext(article.filename)[0]
 
