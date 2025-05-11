@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from app.models.model import Note
 from app.schemas.note import NoteCreate, NoteUpdate, NoteFind, NoteResponse
 
-async def create_note_in_db(note: NoteCreate, db: AsyncSession):
-    new_note = Note(content=note.content, article_id=note.article_id, title=note.title)
+async def create_note_in_db(note: NoteCreate, db: AsyncSession, user_id: int):
+    new_note = Note(content=note.content, article_id=note.article_id, title=note.title, creator_id=user_id)
     db.add(new_note)
     await db.commit()
     await db.refresh(new_note)
@@ -105,3 +105,47 @@ async def find_recent_notes_in_db(db: AsyncSession):
     recent_notes = [{"date": row.date, "count": row.count} for row in data]
 
     return recent_notes
+
+async def  find_self_recent_notes_in_db(db: AsyncSession, user_id: int):
+    """
+    返回近7天内创建的笔记的数目和对应日期
+    """
+    # 获取当前日期和7天前的日期
+    today = datetime.now().date()
+    seven_days_ago = today - timedelta(days=6)
+
+    # 查询近7天内的笔记数目，按日期分组
+    stmt = (
+        select(
+            cast(Note.create_time, Date).label("date"),  # 按日期分组
+            func.count(Note.id).label("count")          # 统计每日期的笔记数
+        )
+        .where(
+            Note.create_time >= seven_days_ago,         # 筛选近7天的笔记
+            Note.create_time <= today,                  # 包括今天
+            Note.creator_id == user_id                   # 筛选特定用户的笔记
+        )
+        .group_by(cast(Note.create_time, Date))         # 按日期分组
+        .order_by(cast(Note.create_time, Date))         # 按日期排序
+    )
+
+    # 执行查询
+    result = await db.execute(stmt)
+    data = result.fetchall()
+
+    # 格式化结果为字典列表
+    recent_notes = [{"date": row.date, "count": row.count} for row in data]
+
+    return recent_notes
+
+async def find_self_notes_count_in_db(db: AsyncSession, user_id: int):
+    """
+    返回用户的笔记数目
+    """
+    stmt = (
+        select(func.count(Note.id))
+        .where(Note.creator_id == user_id)
+    )
+    result = await db.execute(stmt)
+    count = result.scalar_one_or_none()
+    return count

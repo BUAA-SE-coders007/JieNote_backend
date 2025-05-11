@@ -93,7 +93,7 @@ class Note(Base):
     article_id = Column(Integer, ForeignKey('articles.id'))
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
-    
+    creator_id = Column(Integer, ForeignKey('users.id'))  # 创建者ID
     visible = Column(Boolean, default=True, nullable=False) # 是否可见 False表示在回收站中
 
     article = relationship('Article', back_populates='notes')
