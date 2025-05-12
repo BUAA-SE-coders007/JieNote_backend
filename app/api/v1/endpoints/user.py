@@ -33,23 +33,20 @@ async def update_current_user(
             avatar_file: UploadFile = avatar
             file_extension = os.path.splitext(avatar_file.filename)[1]
             unique_filename = f"{uuid4()}{file_extension}"
-            avatar_dir = os.path.join("app", "static", "avatar")
-            avatar_path = os.path.join(avatar_dir, unique_filename)
+            avatar_path = os.path.join("/lhcos-data/avatar", unique_filename)
 
             # 确保以二进制模式写入文件，避免编码问题
             with open(avatar_path, "wb") as f:
                 f.write(await avatar_file.read())
 
             # 生成 URL 路径
-            avatar_url = f"/static/avatar/{unique_filename}"
+            avatar_url = f"/lhcos-data/avatar/{unique_filename}"
 
             # 删除旧的头像文件
-            if db_user.avatar and db_user.avatar != "/static/avatar/default.png":
-                old_avatar_path = db_user.avatar.lstrip("/")  # 去掉开头的斜杠
-                if os.path.exists(old_avatar_path):
-                    os.remove(old_avatar_path)
+            if db_user.avatar and db_user.avatar != "/lhcos-data/avatar/default.png":
+                if os.path.exists(db_user.avatar):
+                    os.remove(db_user.avatar)
                 
-
         update_user_response = UserUpdate(
             username=username,
             avatar=avatar_url if avatar_url else db_user.avatar,
