@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert, delete, update
 from app.models.model import User, Group, Folder, Article, Note, Tag, user_group, enter_application
 
 async def crud_create(leader: int, name: str, description: str, db: AsyncSession):
@@ -41,7 +41,7 @@ async def crud_get_applications(group_id: int, db: AsyncSession):
     users = result.all()
     return [{"user_id": user.id, "user_name": user.username} for user in users]
 
-async def crud_reply_to_enter(user_id: int, group_id: int, reply: int, db: AsyncSession):
+async def crud_reply_to_enter(user_id: int, group_id: int, reply: bool, db: AsyncSession):
     # 答复后，需要从待处理申请的表中删除表项
     query = delete(enter_application).where(enter_application.c.user_id == user_id, enter_application.c.group_id == group_id)
     result = await db.execute(query)
@@ -49,10 +49,47 @@ async def crud_reply_to_enter(user_id: int, group_id: int, reply: int, db: Async
         raise HTTPException(status_code=405, detail="Application is not existed or already handled")
     await db.commit()
 
-    if reply == 1:
+    if reply:
         new_relation = insert(user_group).values(user_id=user_id, group_id=group_id)
         await db.execute(new_relation)
         await db.commit()
         return "Add new member successfully"
     
     return "Refuse the application successfully"
+
+async def crud_modify_basic_info(db: AsyncSession, id: int, name: str | None = None, desc: str | None = None):
+    update_data = {}
+    if name:
+        update_data["name"] = name
+    if desc:
+        update_data["description"] = desc
+    query = update(Group).where(Group.id == id).values(**update_data)
+    await db.execute(query)
+    await db.commit()
+
+async def crud_modify_admin_list(group_id: int, user_id: int, add_admin: bool, db: AsyncSession):
+    # 检查组织中是否有该成员
+    query = select(user_group).where(user_group.c.user_id == user_id, user_group.c.group_id == group_id)
+    result = await db.execute(query)
+    relation = result.first()
+    if not relation:
+        raise HTTPException(status_code=405, detail="User currently not in the group")
+    
+    # 将该成员设为或取消管理员
+    query = update(user_group).where(user_group.c.group_id == group_id, user_group.c.user_id == user_id).values(is_admin=add_admin)
+    await db.execute(query)
+    await db.commit()
+
+    return "The user is an admin now" if add_admin else "The user is not an admin now"
+
+async def crud_remove_member(group_id: int, user_id: int, db: AsyncSession):    
+    # 不必先检查组织中是否有该成员，若没有则再执行一次delete也不会报错
+    query = delete(user_group).where(user_group.c.group_id == group_id, user_group.c.user_id == user_id)
+    await db.execute(query)
+    await db.commit()
+
+async def crud_leave_group(group_id: int, user_id: int, db: AsyncSession):
+    # 不必先检查组织中是否有该成员，若没有则再执行一次delete也不会报错
+    query = delete(user_group).where(user_group.c.group_id == group_id, user_group.c.user_id == user_id)
+    await db.execute(query)
+    await db.commit()
