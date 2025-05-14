@@ -5,8 +5,8 @@ import glob
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.group import crud_create, crud_apply_to_enter, crud_get_applications, crud_reply_to_enter, crud_modify_basic_info, crud_modify_admin_list, crud_remove_member, crud_leave_group
-from app.schemas.group import ApplyToEnter, LeaveGroup
+from app.curd.group import crud_create, crud_apply_to_enter, crud_get_applications, crud_reply_to_enter, crud_modify_basic_info, crud_modify_admin_list, crud_remove_member, crud_leave_group, crud_get_basic_info, crud_get_people_info, crud_get_my_level
+from app.schemas.group import ApplyToEnter, LeaveGroup, GetBasicInfo
 
 router = APIRouter()
 
@@ -55,7 +55,7 @@ async def modify_basic_info(group_id: int = Query(...), group_name: str | None =
     if group_avatar:
         os.makedirs("/lhcos-data/group-avatar", exist_ok=True)
         # 若之前存储了旧头像，则将其删除；若之前就没头像，则不做处理
-        old_avatar = glob.glob(os.path.join("/lhcos-data/group-avatar", group_id + ".*"))   # 基本名为group_id的文件列表，最多有一个元素
+        old_avatar = glob.glob(os.path.join("/lhcos-data/group-avatar", f"{group_id}.*"))   # 基本名为group_id的文件列表，最多有一个元素
         if old_avatar:
             os.remove(old_avatar[0])
         # 存储新头像，文件名为 {group_id}.上传文件的扩展名
@@ -83,4 +83,22 @@ async def leave_group(model: LeaveGroup, db: AsyncSession = Depends(get_db), use
     await crud_leave_group(group_id, user_id, db)
     return {"msg": "You successfully left the group"}
 
-# 写返回个人文件树的后端时记得加 visible = True
+@router.get("/getBasicInfo", response_model=dict)
+async def get_basic_info(model: GetBasicInfo, db: AsyncSession = Depends(get_db)):
+    group_id = model.group_id
+    name, desc = crud_get_basic_info(group_id, db)
+    find = glob.glob(os.path.join("/lhcos-data/group-avatar", f"{group_id}.*"))
+    avatar = 'default.png' if not find else find[0].removeprefix("/lhcos-data/group-avatar\\\\")
+    avatar = '/lhcos-data/group-avatar/' + avatar
+    return {"avatar": avatar, "name": name, "desc": desc}
+
+@router.get("/getPeopleInfo", response_model=dict)
+async def get_people_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db)):
+    leader, admins, members = await crud_get_people_info(group_id, db)
+    return {"leader": leader, "admins": admins, "members": members}
+
+@router.get("/getMyLevel", response_model=dict)
+async def get_my_level(group_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    level = await crud_get_my_level(user_id, group_id, db)
+    return {"level": level}

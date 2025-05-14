@@ -93,3 +93,58 @@ async def crud_leave_group(group_id: int, user_id: int, db: AsyncSession):
     query = delete(user_group).where(user_group.c.group_id == group_id, user_group.c.user_id == user_id)
     await db.execute(query)
     await db.commit()
+
+async def crud_get_basic_info(group_id: int, db: AsyncSession):
+    query = select(Group.name, Group.description).where(Group.id == group_id)
+    result = await db.execute(query)
+    group = result.first()
+    return group.name, group.description
+
+async def crud_get_people_info(group_id: int, db: AsyncSession):
+    # 创建者信息
+    query = select(Group.leader).where(Group.id == group_id)
+    result = await db.execute(query)
+    leader_id = result.scalar_one_or_none()
+    query = select(User).where(User.id == leader_id)
+    result = await db.execute(query)
+    user = result.scalar_one_or_none()
+    leader = {"id": user.id, "name": user.username, "avatar": user.avatar}
+
+    # 管理者信息
+    query = select(user_group.c.user_id).where(user_group.c.group_id == group_id, user_group.c.is_admin == True)
+    result = await db.execute(query)
+    admin_ids = result.scalars().all()
+    query = select(User).where(User.id.in_(admin_ids))
+    result = await db.execute(query)
+    users = result.all()
+    admins = [{"id": user.id, "name": user.username, "avatar": user.avatar} for user in users]
+    
+    # 普通成员信息
+    query = select(user_group.c.user_id).where(user_group.c.group_id == group_id, user_group.c.is_admin == False)
+    result = await db.execute(query)
+    member_ids = result.scalars.all()
+    query = select(User).where(User.id.in_(member_ids))
+    result = await db.execute(query)
+    users = result.all()
+    members = [{"id": user.id, "name": user.username, "avatar": user.avatar} for user in users]
+    
+    return leader, admins, members
+
+async def crud_get_my_level(user_id: int, group_id: int, db: AsyncSession):
+    # 是否是创建者
+    query = select(Group.leader).where(Group.id == group_id)
+    result = await db.execute(query)
+    leader_id = result.scalar_one_or_none()
+    if user_id == leader_id:
+        return 1
+    query = select(user_group).where(user_group.c.user_id == user_id, user_group.c.group_id == group_id)
+    result = await db.execute(query)
+    relation = result.first()
+    # 是否是管理员
+    if relation and relation["is_admin"]:
+        return 2
+    # 是否是普通成员
+    if relation: # and not relation["is_admin"]:
+        return 3
+    # 未加入组织
+    return 4

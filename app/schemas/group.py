@@ -5,3 +5,6 @@ class ApplyToEnter(BaseModel):
 
 class LeaveGroup(BaseModel):
     group_id: int
+
+class GetBasicInfo(BaseModel):
+    group_id: int
