@@ -14,8 +14,9 @@ async def create_note(note: NoteCreate, db: AsyncSession = Depends(get_db), curr
     return {"msg": "Note created successfully", "note_id": new_note.id}
 
 @router.delete("/{note_id}", response_model=dict)
-async def delete_note(note_id: int, db: AsyncSession = Depends(get_db)):
-    note = await delete_note_in_db(note_id, db)
+async def delete_note(note_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    note = await delete_note_in_db(note_id, user_id, db)
     if not note:
         raise HTTPException(status_code=404, detail="Note not found")
     return {"msg": "Note deleted successfully"}

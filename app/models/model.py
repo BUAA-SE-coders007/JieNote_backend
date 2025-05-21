@@ -17,6 +17,18 @@ enter_application = Table(
     Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True),
 )
 
+self_recycle_bin = Table(
+    'self_recycle_bin', Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('type', Integer, primary_key=True),      # 1: folder 2: article 3: note
+    Column('id', Integer, primary_key=True),
+    Column('name', Text, nullable=False),           # 回收站显示
+    Column('create_time', DateTime, default=func.now(), nullable=False),    # 加入回收站的时间
+    Column('article_id', Integer, ForeignKey('articles.id', ondelete="CASCADE")),               
+    Column('folder_id', Integer, ForeignKey('folders.id', ondelete="CASCADE"))
+    # 最后两列为有上级时的上级节点信息，用于恢复时检查是否有上级节点在回收站中，和彻底删除时的级联删除
+)
+
 class User(Base):
     __tablename__ = 'users'
 
@@ -61,7 +73,7 @@ class Folder(Base):
     # 关系定义
     user = relationship('User', back_populates='folders')
     group = relationship('Group', back_populates='folders')
-    articles = relationship('Article', back_populates='folder')
+    articles = relationship('Article', back_populates='folder', cascade="all, delete-orphan")
 
     __table_args__ = (
         # 不能同时为空
@@ -74,14 +86,14 @@ class Article(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(Text, nullable=False)
-    folder_id = Column(Integer, ForeignKey('folders.id'))
+    folder_id = Column(Integer, ForeignKey('folders.id', ondelete="CASCADE"))
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
 
     visible = Column(Boolean, default=True, nullable=False) # 是否可见 False表示在回收站中
     
     folder = relationship('Folder', back_populates='articles', lazy='selectin')
-    notes = relationship('Note', back_populates='article')
+    notes = relationship('Note', back_populates='article', cascade="all, delete-orphan")
     tags = relationship('Tag', back_populates='article')
 
 class Note(Base):
@@ -90,7 +102,7 @@ class Note(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     title = Column(String(100), nullable=False)
     content = Column(Text)  # 将 content 字段类型改为 Text，以支持存储大量文本
-    article_id = Column(Integer, ForeignKey('articles.id'))
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete="CASCADE"))
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     creator_id = Column(Integer, ForeignKey('users.id'))  # 创建者ID
