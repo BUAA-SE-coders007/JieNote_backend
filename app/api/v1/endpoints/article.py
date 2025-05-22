@@ -11,7 +11,7 @@ import tempfile
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags, crud_all_tags_order, crud_change_folder_name, crud_change_article_name, crud_article_statistic, crud_self_tree, crud_self_article_statistic
+from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_read_article, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags, crud_all_tags_order, crud_change_folder_name, crud_change_article_name, crud_article_statistic, crud_self_tree, crud_self_article_statistic, crud_items_in_recycle_bin, crud_delete_forever, crud_recover
 from app.schemas.article import SelfCreateFolder
 
 router = APIRouter()
@@ -72,13 +72,15 @@ async def self_create_folder(model: SelfCreateFolder, db: AsyncSession = Depends
     return {"msg": "User Folder Created Successfully", "folder_id": folder_id}
 
 @router.delete("/selfArticleToRecycleBin", response_model="dict")
-async def self_article_to_recycle_bin(article_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    await crud_self_article_to_recycle_bin(article_id, db)
+async def self_article_to_recycle_bin(article_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    await crud_self_article_to_recycle_bin(article_id, user_id, db)
     return {"msg": "Article is moved to recycle bin"}
 
 @router.delete("/selfFolderToRecycleBin", response_model="dict")
-async def self_folder_to_recycle_bin(folder_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    await crud_self_folder_to_recycle_bin(folder_id, db)
+async def self_folder_to_recycle_bin(folder_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    await crud_self_folder_to_recycle_bin(folder_id, user_id, db)
     return {"msg": "Folder is moved to recycle bin"}
 
 @router.post("/annotateSelfArticle", response_model="dict")
@@ -202,3 +204,19 @@ async def self_article_statistic(db: AsyncSession = Depends(get_db), user: dict 
     user_id = user.get("id")
     article_total_num, articles = await crud_self_article_statistic(user_id, db)
     return {"article_total_num": article_total_num, "articles": articles}
+
+@router.get("/itemsInRecycleBin", response_model=dict)
+async def items_in_recycle_bin(page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    items = await crud_items_in_recycle_bin(user_id, page_number, page_size, db)
+    return {"items": items}
+
+@router.delete("/deleteForever", response_model=dict)
+async def delete_forever(type: int = Query(...), id: int = Query(...), db: AsyncSession = Depends(get_db)):
+    await crud_delete_forever(type, id, db)
+    return {"msg": "Item and its child nodes deleted forever successfully"}
+
+@router.post("/recover", response_model=dict)
+async def recover(type: int = Body(...), id: int = Body(...), db: AsyncSession = Depends(get_db)):
+    return_value = await crud_recover(type, id, db)
+    return return_value

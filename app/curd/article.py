@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, insert, desc
 from sqlalchemy import func, cast, Date
 from datetime import datetime, timedelta
-from app.models.model import User, Group, Folder, Article, Note, Tag, user_group
+from app.models.model import User, Group, Folder, Article, Note, Tag, user_group, self_recycle_bin
 
 async def crud_upload_to_self_folder(name: str, folder_id: int, db: AsyncSession):
     new_article = Article(name=name, folder_id=folder_id)
@@ -46,25 +46,31 @@ async def crud_self_create_folder(name: str, user_id: int, db: AsyncSession):
     await db.refresh(new_folder)
     return new_folder.id
 
-async def crud_self_article_to_recycle_bin(article_id: int, db: AsyncSession):
-    # 查询 article
+async def crud_self_article_to_recycle_bin(article_id: int, user_id: int, db: AsyncSession):
+    # 维护 article 表
     query = select(Article).where(Article.id == article_id)
     result = await db.execute(query)
     article = result.scalar_one_or_none()
-
-    # 修改 visible 字段
     article.visible = False
+    
+    # 维护 self_recycle_bin 表
+    recycle = insert(self_recycle_bin).values(user_id=user_id, type=2, id=article_id, name=article.name, folder_id=article.folder_id)
+    await db.execute(recycle)
+
     await db.commit()
     await db.refresh(article)
 
-async def crud_self_folder_to_recycle_bin(folder_id: int,  db: AsyncSession):
-    # 查询 folder
+async def crud_self_folder_to_recycle_bin(folder_id: int, user_id: int, db: AsyncSession):
+    # 维护 folder 表
     query = select(Folder).where(Folder.id == folder_id)
     result = await db.execute(query)
     folder = result.scalar_one_or_none()
-
-    # 修改 visible 字段
     folder.visible = False
+
+    # 维护 self_recycle_bin 表
+    recycle = insert(self_recycle_bin).values(user_id=user_id, type=1, id=folder_id, name=folder.name)
+    await db.execute(recycle)
+
     await db.commit()
     await db.refresh(folder)
 
@@ -166,11 +172,11 @@ async def crud_article_statistic(db: AsyncSession):
     tomorrow = datetime.now().date() + timedelta(days=1)
     seven_days_ago = datetime.now().date() - timedelta(days=6)
 
-    # 查询近7天内的笔记数目，按日期分组
+    # 查询近7天内的文献数目，按日期分组
     query = (
         select(
             cast(Article.create_time, Date).label("date"),  # 按日期分组
-            func.count(Article.id).label("count")           # 统计每日期的笔记数
+            func.count(Article.id).label("count")           # 统计每日期的文献数
         )
         .where(
             Article.create_time >= seven_days_ago,          # 大于等于7天前的0点
@@ -243,11 +249,11 @@ async def crud_self_article_statistic(user_id: int, db: AsyncSession):
     tomorrow = datetime.now().date() + timedelta(days=1)
     seven_days_ago = datetime.now().date() - timedelta(days=6)
 
-    # 查询近7天内的笔记数目，按日期分组
+    # 查询近7天内的文献数目，按日期分组
     query = (
         select(
             cast(Article.create_time, Date).label("date"),  # 按日期分组
-            func.count(Article.id).label("count")           # 统计每日期的笔记数
+            func.count(Article.id).label("count")           # 统计每日期的文献数
         )
         .join(Folder, Article.folder_id == Folder.id)
         .where(
@@ -274,3 +280,94 @@ async def crud_self_article_statistic(user_id: int, db: AsyncSession):
             articles.insert(i, {"date": seven_days_ago + timedelta(days=i), "count": 0})
 
     return article_total_num, articles
+
+async def crud_items_in_recycle_bin(user_id: int, page_number: int, page_size: int, db: AsyncSession):
+    query = select(
+        self_recycle_bin.c.type,
+        self_recycle_bin.c.id,
+        self_recycle_bin.c.name,
+        self_recycle_bin.c.create_time
+    ).where(self_recycle_bin.c.user_id == user_id).order_by(desc(self_recycle_bin.c.create_time))
+
+    if page_number and page_size:
+        offset = (page_number - 1) * page_size
+        query = query.offset(offset).limit(page_size)
+
+    result = await db.execute(query)
+    items = result.fetchall()
+
+    return [{"type": item.type, "id": item.id, "name": item.name, "time": item.create_time.strftime("%Y-%m-%d %H:%M:%S")} for item in items]
+
+async def crud_delete_forever(type: int, id: int, db: AsyncSession):
+    query = delete(self_recycle_bin).where(self_recycle_bin.c.type == type, self_recycle_bin.c.id == id)
+    await db.execute(query)
+    if type == 1:
+        query = delete(Folder).where(Folder.id==id)
+    elif type == 2:
+        query = delete(Article).where(Article.id==id)
+    else:
+        query = delete(Note).where(Note.id==id)
+    await db.execute(query)
+    await db.commit()
+
+async def crud_recover(type: int, id: int, db: AsyncSession):
+    query = select(self_recycle_bin).where(self_recycle_bin.c.type == type, self_recycle_bin.c.id == id)
+    result = await db.execute(query)
+    item = result.first()
+    if type == 3:
+        # 检查上级文献存在性
+        query = select(Article).where(Article.id == item.article_id)
+        result = await db.execute(query)
+        article = result.scalar_one_or_none()
+        article_name = article.name
+        article_visible = article.visible
+        # 检查上级文件夹存在性
+        query = select(Folder).where(Folder.id == item.folder_id)
+        result = await db.execute(query)
+        folder = result.scalar_one_or_none()
+        folder_name = folder.name
+        folder_visible = folder.visible
+        # 若上级不存在，则给用户以提示信息，请用户先恢复相应的文件夹和文献
+        if not article_visible or not folder_visible:
+            return {"info": "Note recovered failed, please check its upper-level node", "folder_name": folder_name, "article_name": article_name}
+        # 若上级存在，则正常恢复即可，在回收站表中删除该表项，并将Note表中visible改为True
+        query = delete(self_recycle_bin).where(self_recycle_bin.c.type == type, self_recycle_bin.c.id == id)
+        await db.execute(query)
+        query = select(Note).where(Note.id == id)
+        result = await db.execute(query)
+        note = result.scalar_one_or_none()
+        note.visible = True
+        await db.commit()
+        await db.refresh(note)
+        return {"info": "Note recovered successfully"}
+    if type == 2:
+        # 检查上级文件夹存在性
+        query = select(Folder).where(Folder.id == item.folder_id)
+        result = await db.execute(query)
+        folder = result.scalar_one_or_none()
+        folder_name = folder.name
+        folder_visible = folder.visible
+        # 若上级不存在，则给用户以提示信息，请用户先恢复相应的文件夹
+        if not folder_visible:
+            return {"info": "Article recovered failed, please check its upper-level node", "folder_name": folder_name}
+        # 若上级存在，则正常恢复即可，在回收站表中删除该表项，并将Article表中visible改为True
+        query = delete(self_recycle_bin).where(self_recycle_bin.c.type == type, self_recycle_bin.c.id == id)
+        await db.execute(query)
+        query = select(Article).where(Article.id == id)
+        result = await db.execute(query)
+        article = result.scalar_one_or_none()
+        article.visible = True
+        await db.commit()
+        await db.refresh(article)
+        return {"info": "Article recovered successfully"}
+    if type == 1:
+        # 正常恢复即可，在回收站表中删除该表项，并将Folder表中visible改为True
+        query = delete(self_recycle_bin).where(self_recycle_bin.c.type == type, self_recycle_bin.c.id == id)
+        await db.execute(query)
+        query = select(Folder).where(Folder.id == id)
+        result = await db.execute(query)
+        folder = result.scalar_one_or_none()
+        folder.visible = True
+        await db.commit()
+        await db.refresh(folder)
+        return {"info": "Folder recovered successfully"}

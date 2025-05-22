@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, cast, Date
+from sqlalchemy import func, cast, Date, insert
 from datetime import datetime, timedelta
-from app.models.model import Note
+from app.models.model import Note, self_recycle_bin, Article, Folder
 from app.schemas.note import NoteCreate, NoteUpdate, NoteFind, NoteResponse
 
 async def create_note_in_db(note: NoteCreate, db: AsyncSession, user_id: int):
@@ -12,13 +12,20 @@ async def create_note_in_db(note: NoteCreate, db: AsyncSession, user_id: int):
     await db.refresh(new_note)
     return new_note
 
-async def delete_note_in_db(note_id: int, db: AsyncSession):
+async def delete_note_in_db(note_id: int, user_id: int, db: AsyncSession):
     stmt = select(Note).where(Note.id == note_id)
     result = await db.execute(stmt)
     note = result.scalar_one_or_none()
     if note:
-        note.visible = False  # 将 visible 设置为 False，表示删除
-        # await db.execute(note)
+        # 将 visible 设置为 False，表示删除
+        note.visible = False
+        # 找 folder_id
+        stmt = select(Article).where(Article.id == note.article_id)
+        result = await db.execute(stmt)
+        article = result.scalar_one_or_none()
+        # 插入 self_recycle_bin 表
+        recycle = insert(self_recycle_bin).values(user_id=user_id, type=3, id=note_id, name=note.title, article_id=note.article_id, folder_id=article.folder_id)
+        await db.execute(recycle)
         await db.commit()
     return note
 
@@ -80,8 +87,8 @@ async def find_recent_notes_in_db(db: AsyncSession):
     返回近7天内创建的笔记的数目和对应日期
     """
     # 获取当前日期和7天前的日期
-    today = datetime.now().date()
-    seven_days_ago = today - timedelta(days=6)
+    tomorrow = datetime.now().date() + timedelta(days=1)
+    seven_days_ago = datetime.now().date() - timedelta(days=6)
 
     # 查询近7天内的笔记数目，按日期分组
     stmt = (
@@ -91,7 +98,7 @@ async def find_recent_notes_in_db(db: AsyncSession):
         )
         .where(
             Note.create_time >= seven_days_ago,         # 筛选近7天的笔记
-            Note.create_time <= today                  # 包括今天
+            Note.create_time < tomorrow                 # 包括今天
         )
         .group_by(cast(Note.create_time, Date))         # 按日期分组
         .order_by(cast(Note.create_time, Date))         # 按日期排序
@@ -103,6 +110,11 @@ async def find_recent_notes_in_db(db: AsyncSession):
 
     # 格式化结果为字典列表
     recent_notes = [{"date": row.date, "count": row.count} for row in data]
+
+    # 若某日期没有记录，则为0
+    for i in range(0, 7):
+        if i == len(recent_notes) or recent_notes[i].get("date") != seven_days_ago + timedelta(days=i):
+            recent_notes.insert(i, {"date": seven_days_ago + timedelta(days=i), "count": 0})
 
     return recent_notes
 
@@ -111,8 +123,8 @@ async def  find_self_recent_notes_in_db(db: AsyncSession, user_id: int):
     返回近7天内创建的笔记的数目和对应日期
     """
     # 获取当前日期和7天前的日期
-    today = datetime.now().date()
-    seven_days_ago = today - timedelta(days=6)
+    tomorrow = datetime.now().date() + timedelta(days=1)
+    seven_days_ago = datetime.now().date() - timedelta(days=6)
 
     # 查询近7天内的笔记数目，按日期分组
     stmt = (
@@ -120,10 +132,15 @@ async def  find_self_recent_notes_in_db(db: AsyncSession, user_id: int):
             cast(Note.create_time, Date).label("date"),  # 按日期分组
             func.count(Note.id).label("count")          # 统计每日期的笔记数
         )
+        .join(Article, Note.article_id == Article.id)
+        .join(Folder, Article.folder_id == Folder.id)
         .where(
+            Note.visible == True,
+            Article.visible == True,
+            Folder.visible == True,
             Note.create_time >= seven_days_ago,         # 筛选近7天的笔记
-            Note.create_time <= today,                  # 包括今天
-            Note.creator_id == user_id                   # 筛选特定用户的笔记
+            Note.create_time < tomorrow,                # 包括今天
+            Note.creator_id == user_id                  # 筛选特定用户的笔记
         )
         .group_by(cast(Note.create_time, Date))         # 按日期分组
         .order_by(cast(Note.create_time, Date))         # 按日期排序
@@ -135,6 +152,11 @@ async def  find_self_recent_notes_in_db(db: AsyncSession, user_id: int):
 
     # 格式化结果为字典列表
     recent_notes = [{"date": row.date, "count": row.count} for row in data]
+
+    # 若某日期没有记录，则为0
+    for i in range(0, 7):
+        if i == len(recent_notes) or recent_notes[i].get("date") != seven_days_ago + timedelta(days=i):
+            recent_notes.insert(i, {"date": seven_days_ago + timedelta(days=i), "count": 0})
 
     return recent_notes
 
@@ -144,7 +166,14 @@ async def find_self_notes_count_in_db(db: AsyncSession, user_id: int):
     """
     stmt = (
         select(func.count(Note.id))
-        .where(Note.creator_id == user_id)
+        .join(Article, Note.article_id == Article.id)
+        .join(Folder, Article.folder_id == Folder.id)
+        .where(
+            Note.creator_id == user_id,
+            Note.visible == True,
+            Article.visible == True,
+            Folder.visible == True
+        )
     )
     result = await db.execute(stmt)
     count = result.scalar_one_or_none()
