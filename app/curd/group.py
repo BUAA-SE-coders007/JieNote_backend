@@ -1,8 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, insert, delete, update
-from app.models.model import User, Group, Folder, Article, Note, Tag, user_group, enter_application
+from app.models.model import User, Group, Folder, Article, Note, Tag, user_group
 
 async def crud_create(leader: int, name: str, description: str, db: AsyncSession):
     new_group = Group(leader=leader, name=name, description=description)
@@ -11,51 +10,30 @@ async def crud_create(leader: int, name: str, description: str, db: AsyncSession
     await db.refresh(new_group)
     return new_group.id
 
-async def crud_apply_to_enter(user_id: int, group_id: int, db: AsyncSession):
-    # 是否已经在组织中
-    query = select(user_group).where(user_group.c.user_id == user_id, user_group.c.group_id == group_id)
+async def crud_gen_invite_code(user_email: str, db: AsyncSession):
+    # 检查邮箱存在性
+    query = select(User.id).where(User.email == user_email)
     result = await db.execute(query)
-    existing = result.first()
-    if existing:
-        raise HTTPException(status_code=405, detail="Already in the group")
-    query = select(Group).where(Group.id == group_id)
+    user_id = result.scalar_one_or_none()
+    if not user_id:
+        raise HTTPException(status_code=405, detail="User not existed")
+
+async def crud_enter_group(user_id: int, group_id: int, db: AsyncSession):
+    # 检查是否已经在组织内
+    # 已经是组织leader
+    query = select(Group).where(Group.id == group_id, Group.leader == user_id)
     result = await db.execute(query)
     group = result.scalar_one_or_none()
-    if group.leader == user_id:
-        raise HTTPException(status_code=405, detail="Already in the group")
-    
-    # 插入申请表，若已存在申请则抛出异常
-    query = insert(enter_application).values(user_id=user_id, group_id=group_id)
-    try:
-        await db.execute(query)
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=405, detail="Don't apply repeatedly")
-    
-async def crud_get_applications(group_id: int, db: AsyncSession):
-    query = select(User.id, User.username).where(User.id.in_(
-        select(enter_application.c.user_id).where(enter_application.c.group_id == group_id)
-    ))
+    # 已经是组织admin或member
+    query = select(user_group).where(user_group.c.user_id == user_id, user_group.c.group_id == group_id)
     result = await db.execute(query)
-    users = result.all()
-    return [{"user_id": user.id, "user_name": user.username} for user in users]
-
-async def crud_reply_to_enter(user_id: int, group_id: int, reply: bool, db: AsyncSession):
-    # 答复后，需要从待处理申请的表中删除表项
-    query = delete(enter_application).where(enter_application.c.user_id == user_id, enter_application.c.group_id == group_id)
-    result = await db.execute(query)
-    if result.rowcount == 0:  # 如果没有删除任何行，说明不存在该项
-        raise HTTPException(status_code=405, detail="Application is not existed or already handled")
+    row = result.first()
+    if group or row:
+        raise HTTPException(status_code=408, detail="You are already in the group")
+    
+    new_relation = insert(user_group).values(user_id=user_id, group_id=group_id)
+    await db.execute(new_relation)
     await db.commit()
-
-    if reply:
-        new_relation = insert(user_group).values(user_id=user_id, group_id=group_id)
-        await db.execute(new_relation)
-        await db.commit()
-        return "Add new member successfully"
-    
-    return "Refuse the application successfully"
 
 async def crud_modify_basic_info(db: AsyncSession, id: int, name: str | None = None, desc: str | None = None):
     update_data = {}
@@ -116,16 +94,16 @@ async def crud_get_people_info(group_id: int, db: AsyncSession):
     admin_ids = result.scalars().all()
     query = select(User).where(User.id.in_(admin_ids))
     result = await db.execute(query)
-    users = result.all()
+    users = result.scalars().all()
     admins = [{"id": user.id, "name": user.username, "avatar": user.avatar} for user in users]
     
     # 普通成员信息
     query = select(user_group.c.user_id).where(user_group.c.group_id == group_id, user_group.c.is_admin == False)
     result = await db.execute(query)
-    member_ids = result.scalars.all()
+    member_ids = result.scalars().all()
     query = select(User).where(User.id.in_(member_ids))
     result = await db.execute(query)
-    users = result.all()
+    users = result.scalars().all()
     members = [{"id": user.id, "name": user.username, "avatar": user.avatar} for user in users]
     
     return leader, admins, members
@@ -139,12 +117,12 @@ async def crud_get_my_level(user_id: int, group_id: int, db: AsyncSession):
         return 1
     query = select(user_group).where(user_group.c.user_id == user_id, user_group.c.group_id == group_id)
     result = await db.execute(query)
-    relation = result.first()
+    relation = result.first()       # relation[0] relation[1] relation[2] 分别为表的第1、2、3列
     # 是否是管理员
-    if relation and relation["is_admin"]:
+    if relation and relation[2]:
         return 2
     # 是否是普通成员
-    if relation: # and not relation["is_admin"]:
+    if relation:
         return 3
     # 未加入组织
     return 4
