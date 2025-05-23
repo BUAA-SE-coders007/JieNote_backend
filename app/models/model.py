@@ -8,13 +8,7 @@ user_group = Table(
     'user_group', Base.metadata,
     Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
     Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True),
-    Column('is_admin', Boolean, default=False)
-)
-
-enter_application = Table(
-    'enter_application', Base.metadata,
-    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
-    Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True),
+    Column('level', Integer, default=3)             # 1: leader 2: admin 3:member
 )
 
 self_recycle_bin = Table(
@@ -51,6 +45,7 @@ class Group(Base):
     leader = Column(Integer)
     name = Column(String(30), nullable=False)
     description = Column(String(200), nullable=False)
+    avatar = Column(String(100))
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     users = relationship('User', secondary=user_group, back_populates='groups')
