@@ -2,13 +2,13 @@ from fastapi import APIRouter, Query, Body, UploadFile, File, Depends, HTTPExcep
 from sqlalchemy.ext.asyncio import AsyncSession
 from cryptography.fernet import Fernet
 import os
-import glob
+import uuid
 from datetime import date, datetime
 import json
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.group import crud_create, crud_gen_invite_code, crud_enter_group, crud_modify_basic_info, crud_modify_admin_list, crud_remove_member, crud_leave_group, crud_get_basic_info, crud_get_people_info, crud_get_my_level
+from app.curd.group import crud_create, crud_gen_invite_code, crud_enter_group, crud_modify_basic_info, crud_modify_admin_list, crud_remove_member, crud_leave_group, crud_get_basic_info, crud_get_people_info, crud_get_my_level, crud_all_groups
 from app.schemas.group import EnterGroup, LeaveGroup
 
 router = APIRouter()
@@ -20,15 +20,16 @@ async def create(group_name: str = Query(...), group_desc: str = Query(...), gro
         raise HTTPException(status_code=405, detail="Invalid group name, longer than 30")
     if len(group_desc) > 200:
         raise HTTPException(status_code=405, detail="Invalid group description, longer than 200")
-    group_id = await crud_create(user.get("id"), group_name, group_desc, db)
-    # 存储头像，文件名为 {group_id}.上传文件的扩展名
+    path = "/lhcos-data/group-avatar/default.png"
+    # 存储头像，保留扩展名
     if group_avatar:
         os.makedirs("/lhcos-data/group-avatar", exist_ok=True)
         ext = os.path.splitext(group_avatar.filename)[1]
-        path = os.path.join("/lhcos-data/group-avatar", f"{group_id}{ext}")
+        path = f"/lhcos-data/group-avatar/{uuid.uuid4()}{ext}"
         with open(path, "wb") as f:
             content = await group_avatar.read()
             f.write(content)
+    await crud_create(user.get("id"), group_name, group_desc, path, db)
     return {"msg": "Group created successfully"}
 
 @router.get("/genInviteCode", response_model=dict)
@@ -72,19 +73,18 @@ async def modify_basic_info(group_id: int = Query(...), group_name: str | None =
         raise HTTPException(status_code=405, detail="Invalid group name, longer than 30")
     if group_desc and len(group_desc) > 200:
         raise HTTPException(status_code=405, detail="Invalid group description, longer than 200")
-    await crud_modify_basic_info(db=db, id=group_id, name=group_name, desc=group_desc)
+    new_path = None
     if group_avatar:
         os.makedirs("/lhcos-data/group-avatar", exist_ok=True)
-        # 若之前存储了旧头像，则将其删除；若之前就没头像，则不做处理
-        old_avatar = glob.glob(os.path.join("/lhcos-data/group-avatar", f"{group_id}.*"))   # 基本名为group_id的文件列表，最多有一个元素
-        if old_avatar:
-            os.remove(old_avatar[0])
-        # 存储新头像，文件名为 {group_id}.上传文件的扩展名
+        # 存储新头像，保留扩展名
         ext = os.path.splitext(group_avatar.filename)[1]
-        path = os.path.join("/lhcos-data/group-avatar", f"{group_id}{ext}")
-        with open(path, "wb") as f:
+        new_path = f"/lhcos-data/group-avatar/{uuid.uuid4()}{ext}"
+        with open(new_path, "wb") as f:
             content = await group_avatar.read()
             f.write(content)
+    old_path = await crud_modify_basic_info(db=db, id=group_id, name=group_name, desc=group_desc, avatar=new_path)
+    if group_avatar and old_path != "/lhcos-data/group-avatar/default.png":
+        os.remove(old_path)
     return {"msg": "Basic info modified successfully"}
 
 @router.post("/modifyAdminList", response_model=dict)
@@ -106,10 +106,7 @@ async def leave_group(model: LeaveGroup, db: AsyncSession = Depends(get_db), use
 
 @router.get("/getBasicInfo", response_model=dict)
 async def get_basic_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    name, desc = await crud_get_basic_info(group_id, db)
-    find = glob.glob(os.path.join("/lhcos-data/group-avatar", f"{group_id}.*"))
-    avatar = 'default.png' if not find else find[0].removeprefix("/lhcos-data/group-avatar\\\\")
-    avatar = '/lhcos-data/group-avatar/' + avatar
+    name, desc, avatar = await crud_get_basic_info(group_id, db)
     return {"avatar": avatar, "name": name, "desc": desc}
 
 @router.get("/getPeopleInfo", response_model=dict)
@@ -122,3 +119,9 @@ async def get_my_level(group_id: int = Query(...), db: AsyncSession = Depends(ge
     user_id = user.get("id")
     level = await crud_get_my_level(user_id, group_id, db)
     return {"level": level}
+
+@router.get("/allGroups", response_model=dict)
+async def all_groups(db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    leader, admin, member = await crud_all_groups(user_id, db)
+    return {"leader": leader, "admin": admin, "member": member}
