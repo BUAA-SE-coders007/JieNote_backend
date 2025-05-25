@@ -42,7 +42,8 @@ async def update_note_in_db(note_id: int, note: NoteUpdate, db: AsyncSession):
         await db.refresh(existing_note)
     return existing_note
 
-async def find_notes_in_db(note_find: NoteFind, db: AsyncSession):
+async def find_notes_in_db(note_find: NoteFind, db: AsyncSession, user_id: int):
+    
     stmt = select(Note).where(Note.visible == True)  # 只查询可见的笔记
 
     if note_find.id is not None:
@@ -50,7 +51,7 @@ async def find_notes_in_db(note_find: NoteFind, db: AsyncSession):
     elif note_find.article_id is not None:
         stmt = stmt.where(Note.article_id == note_find.article_id)
     if note_find.query is not None:
-        stmt = stmt.where(Note.content.like(f"%{note_find.query}%") | Note.title.like(f"%{note_find.query}%"))
+        stmt = stmt.where((Note.content.like(f"%{note_find.query}%") | Note.title.like(f"%{note_find.query}%")) & Note.creator_id == user_id)
     total_count_stmt = select(func.count()).select_from(stmt)
     total_count_result = await db.execute(total_count_stmt)
     total_count = total_count_result.scalar()

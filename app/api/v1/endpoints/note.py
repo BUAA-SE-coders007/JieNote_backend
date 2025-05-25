@@ -32,8 +32,9 @@ async def update_note(note_id: int, content: Optional[str] = None, title: Option
     return {"msg": "Note updated successfully", "note_id": updated_note.id}
 
 @router.get("/get", response_model=dict)
-async def get_notes(note_find: NoteFind = Depends(), db: AsyncSession = Depends(get_db)):
-    notes, total_count = await find_notes_in_db(note_find, db)
+async def get_notes(note_find: NoteFind = Depends(), db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    notes, total_count = await find_notes_in_db(note_find, db, user_id)
     return {
         "pagination": {
             "total_count": total_count,
