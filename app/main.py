@@ -4,6 +4,7 @@ from fastapi_pagination import add_pagination
 from loguru import logger
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+import os
 
 app = FastAPI()
 
@@ -41,5 +42,8 @@ app.add_middleware(
 )
 
 # 挂载静态文件目录
+os.makedirs("/lhcos-data/avatar", exist_ok=True)
+os.makedirs("/lhcos-data/images", exist_ok=True)
+    
 app.mount("/avatar", StaticFiles(directory="/lhcos-data/avatar"), name="avatar")
 app.mount("/images", StaticFiles(directory="/lhcos-data/images"), name="images")
