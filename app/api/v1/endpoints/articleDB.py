@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, Form, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.get_db import get_db
-from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse
-from app.curd.articleDB import  create_article_in_db, get_article_in_db, get_article_in_db_by_id, get_article_info_in_db_by_id
+from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse, SearchArticle
+from app.curd.articleDB import  create_article_in_db, get_article_in_db, get_article_in_db_by_id, get_article_info_in_db_by_id, search_article_in_db
 from app.core.config import settings
 import os
 import uuid
@@ -49,6 +49,23 @@ async def get_article(get_article: GetArticle = Depends(), db: AsyncSession = De
         "pagination": {
             "page": get_article.page,
             "page_size": get_article.page_size,
+            "total_count": total_count
+        },
+        "articles": [articles.model_dump() for articles in articles]
+    }
+
+
+@router.get("/search", response_model=dict)
+async def search_article(search_article: SearchArticle = Depends(), db: AsyncSession = Depends(get_db)):
+    """
+    Search for an article by title.
+    """
+    # 根据标题查询文章信息
+    articles, total_count = await search_article_in_db(db=db, search_article=search_article)
+    return {
+        "pagination": {
+            "page": search_article.page,
+            "page_size": search_article.page_size,
             "total_count": total_count
         },
         "articles": [articles.model_dump() for articles in articles]
