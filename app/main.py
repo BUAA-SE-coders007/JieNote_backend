@@ -42,3 +42,4 @@ app.add_middleware(
 
 # 挂载静态文件目录
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/images", StaticFiles(directory="/lhcos-data/images"), name="images")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
@@ -17,6 +17,10 @@ from app.curd.article import crud_self_create_folder, crud_article_statistic
 from app.utils.get_db import get_db
 from app.utils.redis import get_redis_client
 from app.curd.note import find_recent_notes_in_db
+from fastapi import File, UploadFile
+from fastapi.responses import FileResponse
+import os
+from uuid import uuid4
 
 router = APIRouter()
 
@@ -160,3 +164,43 @@ async def get_recent_notes(db: AsyncSession = Depends(get_db)):
     return {
         "notes": notes
     }
+
+# 上传图片接口
+@router.post("/image/upload", response_model=dict)
+async def upload_image(image: UploadFile = File(...)):
+    """
+    上传图片接口
+    """
+    try:
+        # 生成唯一文件名
+        file_extension = os.path.splitext(image.filename)[1]
+        unique_filename = f"{uuid4()}{file_extension}"
+        image_path = os.path.join("/lhcos-data/images", unique_filename)
+
+        # 确保以二进制模式写入文件，避免编码问题
+        with open(image_path, "wb") as f:
+            f.write(await image.read())
+
+        # # 生成 URL 路径
+        image_url = f"/images/{unique_filename}"
+
+        return {"image_url": image_url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.get("/image/{imgname}", response_model=dict)
+async def get_image(imgname: str):
+    """
+    获取图片接口
+    """
+    try:
+        image_path = os.path.join("/lhcos-data/images", imgname)
+        if not os.path.exists(image_path):
+            raise HTTPException(status_code=404, detail="Image not found")
+        return FileResponse(
+            path=image_path,
+            media_type="image/png"  # 根据实际图片类型修改或动态设置
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
