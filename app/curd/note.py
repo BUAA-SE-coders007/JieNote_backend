@@ -49,7 +49,8 @@ async def find_notes_in_db(note_find: NoteFind, db: AsyncSession):
         stmt = stmt.where(Note.id == note_find.id)
     elif note_find.article_id is not None:
         stmt = stmt.where(Note.article_id == note_find.article_id)
-
+    if note_find.query is not None:
+        stmt = stmt.where(Note.content.like(f"%{note_find.query}%") | Note.title.like(f"%{note_find.query}%"))
     total_count_stmt = select(func.count()).select_from(stmt)
     total_count_result = await db.execute(total_count_stmt)
     total_count = total_count_result.scalar()

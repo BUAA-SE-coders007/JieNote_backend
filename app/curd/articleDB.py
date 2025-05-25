@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
 from app.models.model import ArticleDB
-from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse
+from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse, SearchArticle
 
 async def create_article_in_db(db: AsyncSession, upload_article: UploadArticle):
     """
@@ -22,7 +22,7 @@ async def get_article_in_db(db: AsyncSession, get_article: GetArticle):
         total_count = 1
         articles = [articles] if articles else []
     elif get_article.page and get_article.page_size:
-        count_result = await db.execute(select(func.count()).select_from(UploadArticle))
+        count_result = await db.execute(select(func.count()).select_from(ArticleDB))
         total_count = count_result.scalar()  # 获取总数
         # 分页查询文章
         result = await db.execute(
@@ -36,6 +36,31 @@ async def get_article_in_db(db: AsyncSession, get_article: GetArticle):
         articles = result.scalars().all()
         total_count = len(articles)
         
+    return [GetResponse.model_validate(article) for article in articles], total_count
+
+async def search_article_in_db(db: AsyncSession, search_article: SearchArticle):
+    """
+    Search for articles by title.
+    """
+    if search_article.author:
+        result = await db.execute(select(ArticleDB).where(ArticleDB.title.like(f"%{search_article.query}%"), ArticleDB.author.like(f"%{search_article.author}%")))
+        articles = result.scalars().all()
+        total_count = len(articles)
+    elif search_article.page and search_article.page_size:
+        count_result = await db.execute(select(func.count()).select_from(ArticleDB).where(ArticleDB.title.like(f"%{search_article.query}%")))
+        total_count = count_result.scalar()
+        # 分页查询文章
+        result = await db.execute(
+            select(ArticleDB)
+            .where(ArticleDB.title.like(f"%{search_article.query}%"))
+            .offset((search_article.page - 1) * search_article.page_size)
+            .limit(search_article.page_size)
+        )
+        articles = result.scalars().all()
+    else:
+        result = await db.execute(select(ArticleDB).where(ArticleDB.title.like(f"%{search_article.query}%")))
+        articles = result.scalars().all()
+        total_count = len(articles)
     return [GetResponse.model_validate(article) for article in articles], total_count
     
 async def get_article_in_db_by_id(db: AsyncSession, article_id: int):

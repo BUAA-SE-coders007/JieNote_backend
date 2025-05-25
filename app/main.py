@@ -59,5 +59,5 @@ os.makedirs(AVATAR_DIR, exist_ok=True)
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
 # 挂载静态文件目录
-app.mount("/avatar", StaticFiles(directory=AVATAR_DIR), name="avatar")
+app.mount("/lhcos-data/avatar", StaticFiles(directory=AVATAR_DIR), name="avatar")
 app.mount("/images", StaticFiles(directory=IMAGES_DIR), name="images")
