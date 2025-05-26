@@ -1,11 +1,15 @@
 from fastapi import Depends, Request
 from fastapi.responses import StreamingResponse
-from app.utils.aichat import kimi_chat_stream
+from app.utils.aichat import kimi_chat_stream, kimi_chat
 from app.utils.redis import get_redis_client
 from app.utils.auth import get_current_user
 import json
 from fastapi import APIRouter
 from app.schemas.aichat import NoteInput
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.utils.get_db import get_db
+from app.utils.readPDF import read_pdf
+from fastapi import HTTPException
 
 
 router = APIRouter()
@@ -48,3 +52,79 @@ async def clear_notes(
     redis_key = f"aichat:{user_id}"
     redis_client.delete(redis_key)
     return {"msg": "clear successfully"}
+
+@router.get("/review", response_model=dict)
+async def review_notes(
+    article_id: int,
+):
+    path = f"/lhcos-data/{article_id}.pdf"
+    text = await read_pdf(path)
+    text += "\n\n请根据以上内容生成文章综述。"
+    async def ai_stream():
+        full_reply = ""
+        try:
+            async for content in kimi_chat_stream([{"role": "user", "content": text}]):
+                full_reply += content
+                yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            error_str = str(e)
+            if "exceeded model token limit" in error_str:
+                raise HTTPException(
+                    status_code=413,
+                    detail="输入内容过长，超出了模型的token限制"
+                )
+            # 其他类型的错误重新抛出
+            raise
+    return StreamingResponse(ai_stream(), media_type="text/event-stream")
+    
+@router.get("/graph", response_model=dict)
+async def generate_graph(
+    note_id: int,
+    db : AsyncSession = Depends(get_db),
+):
+    # 读取数据库获取笔记内容
+    from app.curd.note import get_note_by_id
+    note = await get_note_by_id(db, note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    text = note.content
+    text += """
+    我需要你对于上面的内容生成思维导图，请仅给我返回mermaid代码，不要有其他内容，下面是生成样例，
+        graph TD
+        A[Natural Language Navigation for Service Robots] --> B[Task Definition]
+        A --> C[Challenges]
+        A --> D[Proposed Solution]
+        A --> E[Experimental Results]
+
+        B --> B1["- Predict action sequence from NL instructions"]
+        B --> B2["- Example: 'Walk out of bathroom to right stairs'"]
+
+        C --> C1["- Environment exploration"]
+        C --> C2["- Accurate path following"]
+        C --> C3["- Language-vision relationship modeling"]
+
+        D --> D1[CrossMap Transformer Network]
+        D --> D2[Transformer-based Speaker]
+        D --> D3[Double Back-Translation Model]
+
+        D1 --> D11["- Encodes linguistic/visual features"]
+        D1 --> D12["- Sequentially generates paths"]
+
+        D2 --> D21["- Generates navigation instructions"]
+
+        D3 --> D31["- Paths → Instructions"]
+        D3 --> D32["- Instructions → Paths"]
+        D3 --> D33["- Shared latent features"]
+
+        E --> E1["- Improved instruction understanding"]
+        E --> E2["- Enhanced instruction generation"
+    """
+    try:
+        ans = await kimi_chat([{"role": "user", "content": text}], model="moonshot-v1-32k")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI服务异常: {str(e)}"
+        )
+    return {"mermaid_code": ans.strip().replace("```mermaid", "").replace("```", "").strip()}
+    
