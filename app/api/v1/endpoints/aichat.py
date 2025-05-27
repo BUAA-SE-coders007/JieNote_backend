@@ -79,15 +79,18 @@ async def review_notes(
     
 @router.get("/graph", response_model=dict)
 async def generate_graph(
-    note_id: int,
+    article_id: int,
     db : AsyncSession = Depends(get_db),
 ):
     # 读取数据库获取笔记内容
     from app.curd.note import get_note_by_id
-    note = await get_note_by_id(db, note_id)
-    if not note:
+    notes = await get_note_by_id(db, article_id)
+    if not notes:
         raise HTTPException(status_code=404, detail="Note not found")
-    text = note.content
+    text = f"以下是关于文章ID {article_id} 的笔记内容：\n\n"
+    for note in notes:
+        text += f"标题: {note.title}\n" if note.title else ""
+        text += note.content if note.content else ""
     text += """
     我需要你对于上面的内容生成思维导图，请仅给我返回mermaid代码，不要有其他内容，下面是生成样例，
         graph TD

@@ -181,10 +181,12 @@ async def find_self_notes_count_in_db(db: AsyncSession, user_id: int):
     count = result.scalar_one_or_none()
     return count
 
-async def get_note_by_id(db: AsyncSession, note_id: int):
+async def get_note_by_id(db: AsyncSession, article_id: int):
     """
     根据 ID 获取笔记
     """
-    stmt = select(Note).where(Note.id == note_id, Note.visible == True)
+    stmt = select(Note).where(Note.article_id == article_id  and Note.visible == True)
     result = await db.execute(stmt)
-    return result.scalar_one_or_none()  # 返回单个笔记或 None
+    # 返回所有笔记
+    notes = result.scalars().all()
+    return notes if notes else None
