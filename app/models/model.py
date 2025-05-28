@@ -53,7 +53,7 @@ group_logs = Table(
     Column('person1', Integer, ForeignKey('users.id')),
     Column('person2', Integer, ForeignKey('users.id')),
     Column('folder', String(30)),
-    Column('article', String(30)),
+    Column('article', Text),
     Column('note', String(100)),
     Column('article_tags', Text),
     Column('note_content', Text),
@@ -90,6 +90,8 @@ class Group(Base):
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     users = relationship('User', secondary=user_group, back_populates='groups')
     folders = relationship('Folder', back_populates='group', cascade="all, delete-orphan")
+    articles = relationship('Article', back_populates='group', cascade="all, delete-orphan")
+    notes = relationship('Note', back_populates='group', cascade="all, delete-orphan")
 
 class Folder(Base):
     __tablename__ = 'folders'
@@ -130,9 +132,10 @@ class Article(Base):
     visible = Column(Boolean, default=True, nullable=False) # 是否可见 False表示在回收站中
 
     user_id = Column(Integer, ForeignKey('users.id'))
-    group_id = Column(Integer, ForeignKey('groups.id'))
+    group_id = Column(Integer, ForeignKey('groups.id', ondelete="CASCADE"))
     
     folder = relationship('Folder', back_populates='articles', lazy='selectin')
+    group = relationship('Group', back_populates='articles')
     notes = relationship('Note', back_populates='article', cascade="all, delete-orphan")
     tags = relationship('Tag', back_populates='article', cascade="all, delete-orphan")
 
@@ -151,10 +154,11 @@ class Note(Base):
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
     creator_id = Column(Integer, ForeignKey('users.id'))  # 创建者ID
-    group_id = Column(Integer, ForeignKey('groups.id'))
+    group_id = Column(Integer, ForeignKey('groups.id', ondelete="CASCADE"))
     visible = Column(Boolean, default=True, nullable=False) # 是否可见 False表示在回收站中
 
     article = relationship('Article', back_populates='notes')
+    group = relationship('Group', back_populates='notes')
     __table_args__ = (
         # 不能同时为空
         CheckConstraint('creator_id IS NOT NULL OR group_id IS NOT NULL', name='check_creator_or_group'),
