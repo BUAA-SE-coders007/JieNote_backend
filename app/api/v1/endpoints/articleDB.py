@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, Form, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.get_db import get_db
-from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse, SearchArticle
-from app.curd.articleDB import  create_article_in_db, get_article_in_db, get_article_in_db_by_id, get_article_info_in_db_by_id, search_article_in_db
+from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse, SearchArticle, RecommendArticle
+from app.curd.articleDB import  create_article_in_db, get_article_in_db, get_article_in_db_by_id, get_article_info_in_db_by_id, search_article_in_db, recommend_article_in_db
 from app.core.config import settings
 import os
 import uuid
@@ -120,6 +120,15 @@ async def copy_article(folder_id: int, article_id: int, db: AsyncSession = Depen
         raise HTTPException(status_code=500, detail=str(e))
     return {"msg": "Article copied successfully", "new_article_id": new_article_id}
 
-        
+
+@router.get("/recommend", response_model=dict)
+async def recommend_article(recommend_article: RecommendArticle = Depends(), db: AsyncSession = Depends(get_db)):
+    articles = await recommend_article_in_db(db=db, recommend_article=recommend_article)
+    return {
+        "pagination": {
+            "total_count": recommend_article.size,
+        },
+        "articles": [articles.model_dump() for articles in articles]
+    }
 
 

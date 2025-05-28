@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
 from app.models.model import ArticleDB
-from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse, SearchArticle
+from app.schemas.articleDB import UploadArticle, GetArticle, DeLArticle, GetResponse, SearchArticle, RecommendArticle
 
 async def create_article_in_db(db: AsyncSession, upload_article: UploadArticle):
     """
@@ -78,3 +78,16 @@ async def get_article_info_in_db_by_id(db: AsyncSession, article_id: int):
     result = await db.execute(select(ArticleDB).where(ArticleDB.id == article_id))
     article = result.scalars().first()
     return article.file_path, article.title
+
+async def recommend_article_in_db(db: AsyncSession, recommend_article: RecommendArticle):
+    """
+    Recommend articles based on the number of clicks.
+    """
+    size = recommend_article.size or 10 
+    result = await db.execute(
+        select(ArticleDB).order_by(ArticleDB.clicks.desc())
+        .limit(size)
+    )
+    articles = result.scalars().all()
+
+    return [GetResponse.model_validate(article) for article in articles]
