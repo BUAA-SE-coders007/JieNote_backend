@@ -4,8 +4,11 @@ from sqlalchemy import func, cast, Date
 from datetime import datetime, timedelta
 from app.models.model import User, Group, Folder, Article, Note, Tag, user_group, self_recycle_bin
 
-async def crud_upload_to_self_folder(name: str, folder_id: int, db: AsyncSession):
-    new_article = Article(name=name, folder_id=folder_id)
+async def crud_upload_to_self_folder(name: str, folder_id: int, url: str, db: AsyncSession):
+    query = select(Folder.user_id).where(Folder.id == folder_id)
+    result = await db.execute(query)
+    user_id = result.scalar_one_or_none()
+    new_article = Article(name=name, folder_id=folder_id, url=url, user_id=user_id)
     db.add(new_article)
     await db.commit()
     await db.refresh(new_article)
@@ -74,15 +77,34 @@ async def crud_self_folder_to_recycle_bin(folder_id: int, user_id: int, db: Asyn
     await db.commit()
     await db.refresh(folder)
 
+async def crud_annotate_self_article(article_id: int, db: AsyncSession):
+    query = select(Article).where(Article.id == article_id)
+    result = await db.execute(query)
+    article = result.scalar_one_or_none()
+    article.update_time = datetime.now()
+    await db.commit()
+    await db.refresh(article)
+    return article.url
+
 async def crud_read_article(article_id: int, db: AsyncSession):
     query = select(Article).where(Article.id == article_id)
     result = await db.execute(query)
     article = result.scalar_one_or_none()
-    return article.name
+    article.clicks = article.clicks + 1
+    await db.commit()
+    await db.refresh(article)
+    return article.name, article.url
 
-async def crud_import_self_folder(folder_name: str, article_names, user_id: int, db: AsyncSession):
-    result = []
+async def crud_read_article_by_url(article_id: int, db: AsyncSession):
+    query = select(Article).where(Article.id == article_id)
+    result = await db.execute(query)
+    article = result.scalar_one_or_none()
+    article.clicks = article.clicks + 1
+    await db.commit()
+    await db.refresh(article)
+    return article.url, article.update_time
 
+async def crud_import_self_folder(folder_name: str, article_names, urls, user_id: int, db: AsyncSession):
     # 新建文件夹
     new_folder = Folder(name=folder_name, user_id=user_id)
     db.add(new_folder)
@@ -90,15 +112,13 @@ async def crud_import_self_folder(folder_name: str, article_names, user_id: int,
     await db.refresh(new_folder)
 
     # 新建文献
-    new_articles = [Article(name=article_name, folder_id=new_folder.id) for article_name in article_names]
+    new_articles = []
+    for i in range(len(article_names)):
+        new_articles.append(Article(folder_id=new_folder.id, name=article_names[i], url=urls[i], user_id=user_id))
     db.add_all(new_articles)
     await db.commit()
     for new_article in new_articles:
         await db.refresh(new_article)
-        result.append(new_article.id)
-        result.append(new_article.name)
-    
-    return result
 
 async def crud_export_self_folder(folder_id: int, db: AsyncSession):
     query = select(Folder).where(Folder.id == folder_id)
@@ -111,17 +131,20 @@ async def crud_export_self_folder(folder_id: int, db: AsyncSession):
     articles = result.scalars().all()
     article_id = []
     article_name = []
+    article_url = []
     for article in articles:
         article_id.append(article.id)
         article_name.append(article.name)
+        article_url.append(article.url)
 
-    return folder_name, article_id, article_name
+    return folder_name, article_id, article_name, article_url
 
 async def crud_create_tag(article_id: int, content: str, db: AsyncSession):
     new_tag = Tag(article_id=article_id, content=content)
     db.add(new_tag)
     await db.commit()
     await db.refresh(new_tag)
+    return new_tag.id
 
 async def crud_delete_tag(tag_id: int, db: AsyncSession):
     query = select(Tag).filter(Tag.id == tag_id)
@@ -301,14 +324,27 @@ async def crud_items_in_recycle_bin(user_id: int, page_number: int, page_size: i
 async def crud_delete_forever(type: int, id: int, db: AsyncSession):
     query = delete(self_recycle_bin).where(self_recycle_bin.c.type == type, self_recycle_bin.c.id == id)
     await db.execute(query)
-    if type == 1:
-        query = delete(Folder).where(Folder.id==id)
-    elif type == 2:
-        query = delete(Article).where(Article.id==id)
-    else:
-        query = delete(Note).where(Note.id==id)
-    await db.execute(query)
-    await db.commit()
+    if type == 1: 
+        query = select(Article.url).where(Article.folder_id == id)
+        result = await db.execute(query)
+        urls = result.scalars().all()  # 只获取name字段形成列表
+        query = delete(Folder).where(Folder.id == id)
+        result = await db.execute(query)
+        await db.commit()
+        return urls
+    if type == 2:
+        query = select(Article.url).where(Article.id == id)
+        result = await db.execute(query)
+        url = result.scalar_one_or_none()
+        query = delete(Article).where(Article.id == id)
+        result = await db.execute(query)
+        await db.commit()
+        return [url]
+    if type == 3:
+        query = delete(Note).where(Note.id == id)
+        result = await db.execute(query)
+        await db.commit()
+        return []
 
 async def crud_recover(type: int, id: int, db: AsyncSession):
     query = select(self_recycle_bin).where(self_recycle_bin.c.type == type, self_recycle_bin.c.id == id)

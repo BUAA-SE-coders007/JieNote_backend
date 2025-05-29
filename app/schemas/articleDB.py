@@ -32,3 +32,6 @@ class GetResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class RecommendArticle(BaseModel):
+    size: int
