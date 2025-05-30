@@ -195,6 +195,7 @@ async def crud_new_folder(user_id: int, group_id: int, folder_name: str, db: Asy
     await db.execute(new_log)
     await db.commit()
     await db.refresh(new_folder)
+    return new_folder.id
 
 async def crud_new_article(user_id: int, folder_id: int, article_name: str, url: str, db: AsyncSession):
     # 查询必要信息
@@ -231,6 +232,7 @@ async def crud_new_note(article_id: int, title: str, content: str, user_id: int,
 
     await db.commit()
     await db.refresh(new_note)
+    return new_note.id
 
 async def crud_article_tags(article_id: int, user_id: int, tag_contents, db: AsyncSession):
     # 权限检查
