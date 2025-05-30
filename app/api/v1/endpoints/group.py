@@ -134,8 +134,8 @@ async def new_folder(group_id: int = Body(...), folder_name: str = Body(...), db
     if len(folder_name) > 30:
         raise HTTPException(status_code=405, detail="Invalid folder name, longer than 30")
     user_id = user.get("id")
-    await crud_new_folder(user_id, group_id, folder_name, db)
-    return {"msg": "Folder created successfully"}
+    folder_id = await crud_new_folder(user_id, group_id, folder_name, db)
+    return {"msg": "Folder created successfully", "folder_id": folder_id}
 
 @router.post("/newArticle", response_model=dict)
 async def new_article(folder_id: int = Query(...), article: UploadFile = File(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -154,17 +154,17 @@ async def new_article(folder_id: int = Query(...), article: UploadFile = File(..
     name = os.path.splitext(article.filename)[0] 
     # 新建 Article 记录
     user_id = user.get("id")
-    await crud_new_article(user_id, folder_id, name, url, db)    
+    article_id = await crud_new_article(user_id, folder_id, name, url, db)    
 
-    return {"msg": "Article created successfully"}
+    return {"msg": "Article created successfully", "article_id": article_id}
 
 @router.post("/newNote", response_model=dict)
 async def new_note(article_id: int = Body(...), title: str = Body(...), content: str = Body(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     if len(title) > 100:
         raise HTTPException(status_code=405, detail="Invalid note title, longer than 100")
     user_id = user.get("id")
-    await crud_new_note(article_id, title, content, user_id, db)
-    return {"msg": "Note created successfully"}
+    note_id = await crud_new_note(article_id, title, content, user_id, db)
+    return {"msg": "Note created successfully", "note_id": note_id}
 
 @router.post("/articleTags", response_model=dict)
 async def article_tags(article_id: int = Body(...), tag_contents: List[str] = Body(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
