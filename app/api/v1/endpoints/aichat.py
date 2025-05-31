@@ -92,35 +92,59 @@ async def generate_graph(
         text += f"标题: {note.title}\n" if note.title else ""
         text += note.content if note.content else ""
     text += """
-    我需要你对于上面的内容生成思维导图，请仅给我返回mermaid代码，不要有其他内容，下面是生成样例，
-        graph TD
-        A[Natural Language Navigation for Service Robots] --> B[Task Definition]
-        A --> C[Challenges]
-        A --> D[Proposed Solution]
-        A --> E[Experimental Results]
+    我需要你对于上面的内容生成思维导图，请仅给我返回mermaid代码，不要有其他内容，请保证每个连通子图竖向排列，下面是生成样例，
+graph TD
+    A[机器学习项目] --> B[数据收集]
+    A --> C[数据预处理]
+    A --> D[特征工程]
+    A --> E[模型选择]
+    A --> F[模型训练]
+    A --> G[模型评估]
+    A --> H[模型部署]
 
-        B --> B1["- Predict action sequence from NL instructions"]
-        B --> B2["- Example: 'Walk out of bathroom to right stairs'"]
+    subgraph 数据预处理
+        C1[处理缺失值] --> C2[处理异常值]
+        C2 --> C3[数据标准化]
+        C3 --> C4[数据编码]
+    end
 
-        C --> C1["- Environment exploration"]
-        C --> C2["- Accurate path following"]
-        C --> C3["- Language-vision relationship modeling"]
+    subgraph 特征工程
+        D1[特征选择] --> D2[特征提取]
+        D2 --> D3[特征构造]
+        D3 --> D4[特征缩放]
+    end
 
-        D --> D1[CrossMap Transformer Network]
-        D --> D2[Transformer-based Speaker]
-        D --> D3[Double Back-Translation Model]
+    subgraph 模型选择
+        E1[线性回归] --> E2[决策树]
+        E2 --> E3[支持向量机]
+        E3 --> E4[神经网络]
+    end
 
-        D1 --> D11["- Encodes linguistic/visual features"]
-        D1 --> D12["- Sequentially generates paths"]
+    subgraph 模型训练
+        F1[划分训练集和验证集] --> F2[选择损失函数]
+        F2 --> F3[选择优化算法]
+        F3 --> F4[训练模型]
+    end
 
-        D2 --> D21["- Generates navigation instructions"]
+    subgraph 模型评估
+        G1[计算准确率] --> G2[计算召回率]
+        G2 --> G3[计算F1分数]
+        G3 --> G4[绘制混淆矩阵]
+    end
 
-        D3 --> D31["- Paths → Instructions"]
-        D3 --> D32["- Instructions → Paths"]
-        D3 --> D33["- Shared latent features"]
+    subgraph 模型部署
+        H1[模型保存] --> H2[选择部署平台]
+        H2 --> H3[模型集成]
+        H3 --> H4[模型监控]
+        H4 --> H5[模型更新]
+    end
 
-        E --> E1["- Improved instruction understanding"]
-        E --> E2["- Enhanced instruction generation"
+    B --> 数据预处理
+    C --> 特征工程
+    D --> 模型选择
+    E --> 模型训练
+    F --> 模型评估
+    G --> 模型部署
     """
     try:
         ans = await kimi_chat([{"role": "user", "content": text}], model="moonshot-v1-32k")
