@@ -9,7 +9,7 @@ import json
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.group import crud_create, crud_gen_invite_code, crud_enter_group, crud_modify_basic_info, crud_modify_admin_list, crud_remove_member, crud_leave_group, crud_get_basic_info, crud_get_people_info, crud_get_my_level, crud_all_groups, crud_new_folder, crud_new_article, crud_new_note, crud_article_tags, crud_file_tree, crud_permission_define, crud_apply_to_delete, crud_all_delete_applications, crud_reply_to_delete, crud_delete, crud_get_permissions, crud_logs, crud_disband, crud_change_folder_name, crud_change_article_name, crud_change_note, crud_read_note
+from app.curd.group import crud_create, crud_gen_invite_code, crud_enter_group, crud_modify_basic_info, crud_modify_admin_list, crud_remove_member, crud_leave_group, crud_get_basic_info, crud_get_people_info, crud_get_my_level, crud_all_groups, crud_new_folder, crud_new_article, crud_new_note, crud_article_tags, crud_file_tree, crud_permission_define, crud_apply_to_delete, crud_all_delete_applications, crud_reply_to_delete, crud_delete, crud_get_permissions, crud_if_edit_note, crud_logs, crud_disband, crud_change_folder_name, crud_change_article_name, crud_change_note, crud_read_note
 from app.schemas.group import EnterGroup, LeaveGroup
 
 router = APIRouter()
@@ -217,6 +217,12 @@ async def delete(item_type: int = Body(...), item_id: int = Body(...), db: Async
 async def get_permissions(group_id: int = Query(...), item_type: int = Query(...), item_id: int = Query(...), db: AsyncSession = Depends(get_db)):
     unaccessible, read_only, writeable = await crud_get_permissions(group_id, item_type, item_id, db)
     return {"unaccessible": unaccessible, "read_only": read_only, "writeable":  writeable}
+
+@router.get("/ifEditNote", response_model=dict)
+async def if_edit_note(note_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    editable = await crud_if_edit_note(note_id, user_id, db)
+    return {"editable": editable}
 
 @router.post("/changeFolderName", response_model=dict)
 async def change_folder_name(folder_id: int = Body(...), folder_name: str = Body(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):

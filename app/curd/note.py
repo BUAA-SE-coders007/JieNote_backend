@@ -61,7 +61,7 @@ async def find_notes_in_db(note_find: NoteFind, db: AsyncSession, user_id: int):
         stmt = stmt.offset(offset).limit(note_find.page_size)
 
     result = await db.execute(stmt)
-    notes = [NoteResponse.model_validate(note) for note in result.scalars().all()]
+    notes = [{"id": note.id, "title": note.title, "content": note.content, "article_id": note.article_id, "is_group": True if note.group_id else False, "create_time": note.create_time, "update_time": note.update_time} for note in result.scalars().all()]
     return notes, total_count
 
 async def find_notes_title_in_db(note_find: NoteFind, db: AsyncSession):

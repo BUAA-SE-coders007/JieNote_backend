@@ -581,6 +581,12 @@ async def crud_get_permissions(group_id: int, item_type: int, item_id: int, db: 
 
     return unaccessible, read_only, writeable
 
+async def crud_if_edit_note(note_id: int, user_id: int, db: AsyncSession):
+    query = select(operate_permissions).where(operate_permissions.c.user_id == user_id, operate_permissions.c.item_type == 3, operate_permissions.c.item_id == note_id)
+    result = await db.execute(query)
+    permission = result.first()
+    return False if permission else True
+
 async def crud_change_folder_name(folder_id: int, folder_name: str, user_id: int, db: AsyncSession):
     query = select(Folder).where(Folder.id == folder_id)
     result = await db.execute(query)

@@ -41,7 +41,7 @@ async def get_notes(note_find: NoteFind = Depends(), db: AsyncSession = Depends(
             "page": note_find.page,
             "page_size": note_find.page_size
         },
-        "notes": [note.model_dump() for note in notes]
+        "notes": notes
     }
 
 @router.get("/title", response_model=dict)
