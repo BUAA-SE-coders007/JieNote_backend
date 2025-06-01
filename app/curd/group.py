@@ -550,22 +550,22 @@ async def crud_get_permissions(group_id: int, item_type: int, item_id: int, db: 
     unaccessible_ids = result.scalars().all()
     unaccessible = []
     for unaccessible_id in unaccessible_ids:
-        query = select(User.username, User.avatar).where(User.id == unaccessible_id)
+        query = select(User.id, User.username, User.avatar).where(User.id == unaccessible_id)
         result = await db.execute(query)
         user_info = result.one_or_none()
-        user_name, user_avatar = user_info
-        unaccessible.append({"user_name": user_name, "user_avatar": user_avatar})
+        user_id, user_name, user_avatar = user_info
+        unaccessible.append({"user_id": user_id, "user_name": user_name, "user_avatar": user_avatar})
     # 对该实体仅查看的普通成员id
     query = select(operate_permissions.c.user_id).where(operate_permissions.c.group_id == group_id, operate_permissions.c.item_type == item_type, operate_permissions.c.item_id == item_id, operate_permissions.c.accessible == True)
     result = await db.execute(query)
     read_only_ids = result.scalars().all()
     read_only = []
     for read_only_id in read_only_ids:
-        query = select(User.username, User.avatar).where(User.id == read_only_id)
+        query = select(User.id, User.username, User.avatar).where(User.id == read_only_id)
         result = await db.execute(query)
         user_info = result.one_or_none()
-        user_name, user_avatar = user_info
-        read_only.append({"user_name": user_name, "user_avatar": user_avatar})
+        user_id, user_name, user_avatar = user_info
+        read_only.append({"user_id": user_id, "user_name": user_name, "user_avatar": user_avatar})
     # 对该实体可编辑的普通成员id
     writeable_ids = []
     for member_id in member_ids:
@@ -573,11 +573,11 @@ async def crud_get_permissions(group_id: int, item_type: int, item_id: int, db: 
             writeable_ids.append(member_id)
     writeable = []
     for writeable_id in writeable_ids:
-        query = select(User.username, User.avatar).where(User.id == writeable_id)
+        query = select(User.id, User.username, User.avatar).where(User.id == writeable_id)
         result = await db.execute(query)
         user_info = result.one_or_none()
-        user_name, user_avatar = user_info
-        writeable.append({"user_name": user_name, "user_avatar": user_avatar})
+        user_id, user_name, user_avatar = user_info
+        writeable.append({"user_id": user_id, "user_name": user_name, "user_avatar": user_avatar})
 
     return unaccessible, read_only, writeable
 
