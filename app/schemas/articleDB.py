@@ -29,6 +29,8 @@ class GetResponse(BaseModel):
     update_time: datetime 
     author: str
     file_path: str
+    clicks: int
+    intro: str | None = None
 
     class Config:
         from_attributes = True

@@ -184,6 +184,7 @@ class ArticleDB(Base):
     author = Column(String(300), nullable=False)
     file_path = Column(String(200), nullable=False)
     clicks = Column(Integer, default=0, nullable=False)     # 点击量
+    intro = Column(Text, nullable=True)  # 文章简介
     
     create_time = Column(DateTime, default=func.now(), nullable=False)  # 创建时间
     update_time = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)  # 更新时间
