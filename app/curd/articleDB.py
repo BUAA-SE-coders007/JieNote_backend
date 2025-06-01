@@ -91,3 +91,19 @@ async def recommend_article_in_db(db: AsyncSession, recommend_article: Recommend
     articles = result.scalars().all()
 
     return [GetResponse.model_validate(article) for article in articles]
+
+async def update_article_intro(db: AsyncSession, article_id: int, intro: str):
+    """
+    Update the introduction of an article.
+    """
+    result = await db.execute(select(ArticleDB).where(ArticleDB.id == article_id))
+    article = result.scalars().first()
+    
+    if not article:
+        return None
+    
+    article.intro = intro
+    await db.commit()
+    await db.refresh(article)
+    
+    return GetResponse.model_validate(article)

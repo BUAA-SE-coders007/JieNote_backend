@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.get_db import get_db
 from app.utils.readPDF import read_pdf
 from fastapi import HTTPException
-
+from app.curd.articleDB import update_article_intro
+from app.models.model import ArticleDB
 
 router = APIRouter()
 redis_client = get_redis_client()
@@ -155,3 +156,25 @@ graph TD
         )
     return {"mermaid_code": ans.strip().replace("```mermaid", "").replace("```", "").strip()}
     
+@router.get("/intro", response_model=dict)
+async def review_notes(
+    article_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy.future import select
+    # 查找文献path
+    result = await db.execute(select(ArticleDB).where(ArticleDB.id == article_id))
+    article = result.scalars().first()
+    
+    text = await read_pdf(article.file_path)
+    text += "\n\n请根据以上内容生成文章简介。请尽量控制在200字以内。"
+    try:
+        ans = await kimi_chat([{"role": "user", "content": text}], model="moonshot-v1-32k")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI服务异常: {str(e)}"
+        )
+    # 更新文章简介到数据库
+    articleDB = await update_article_intro(db, article_id, ans.strip())
+    return {"articleDB": articleDB.model_dump()}
