@@ -96,9 +96,9 @@ async def download_article(article_id: int, db: AsyncSession = Depends(get_db)):
         filename=quote(download_filename),
         media_type="application/pdf"
     )
-
+from app.utils.auth import get_current_user
 @router.put("/copy", response_model=dict)
-async def copy_article(folder_id: int, article_id: int, db: AsyncSession = Depends(get_db)):
+async def copy_article(folder_id: int, article_id: int, is_group: bool | None = None, db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     """
     Copy an article file by its ID to a specified directory.
     """
@@ -106,11 +106,22 @@ async def copy_article(folder_id: int, article_id: int, db: AsyncSession = Depen
     file_path, title = await get_article_info_in_db_by_id(db=db, article_id=article_id)
     if not file_path:
         raise HTTPException(status_code=404, detail="File not found")
+    old_file_path = file_path
+    
+    if is_group != None and is_group is True:
+        url = f"/lhcos-data/{uuid.uuid4()}.pdf"
+        with open(old_file_path, "rb") as source_file:
+            with open(url, "wb") as dest_file:
+                dest_file.write(source_file.read())
+        # 用文件名（不带扩展名）作为 Article 名称
+        user_id = user.get("id")
+        from app.curd.group import crud_new_article
+        article_id = await crud_new_article(user_id, folder_id, title, url, db)  
+        return {"msg": "Article copied successfully", "new_article_id": article_id}
 
-    new_article_id = await crud_upload_to_self_folder(name=title, folder_id=folder_id, db=db)
+    new_article_id = await crud_upload_to_self_folder(name=title, folder_id=folder_id, url=old_file_path ,db=db)
     
     # 复制文件到新的目录
-    old_file_path = file_path
     new_file_path = os.path.join("/lhcos-data", f"{new_article_id}.pdf")
     try:
         with open(old_file_path, "rb") as source_file:

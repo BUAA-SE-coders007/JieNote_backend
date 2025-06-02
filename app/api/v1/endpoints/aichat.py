@@ -168,12 +168,29 @@ async def review_notes(
     
     text = await read_pdf(article.file_path)
     text += "\n\n请根据以上内容生成文章简介。请尽量控制在200字以内。"
-    try:
-        ans = await kimi_chat([{"role": "user", "content": text}], model="moonshot-v1-32k")
-    except Exception as e:
+    original_text = await read_pdf(article.file_path)
+    max_retries = 5  # 最大重试次数
+    retry_count = 0
+    current_text = original_text + "\n\n请根据以上内容生成文章简介。请尽量控制在200字以内。"
+    has_error = True
+    while retry_count < max_retries:
+        try:
+            ans = await kimi_chat([{"role": "user", "content": current_text}], model="moonshot-v1-32k")
+            # 成功获取到答案，跳出循环
+            has_error = False
+            break
+        except Exception as e:
+            retry_count += 1
+            
+            text_length = len(original_text)
+            half_length = text_length // 2
+            original_text = original_text[:half_length]
+            current_text = original_text + "\n\n请根据以上内容生成文章简介。请尽量控制在200字以内。"
+            continue  # 继续下一次循环尝试
+    if has_error:
         raise HTTPException(
             status_code=500,
-            detail=f"AI服务异常: {str(e)}"
+            detail="AI服务异常，无法生成文章简介，请稍后重试。"
         )
     # 更新文章简介到数据库
     articleDB = await update_article_intro(db, article_id, ans.strip())
