@@ -95,13 +95,15 @@ async def annotate_self_article(article_id: int = Query(...), article: UploadFil
     return {"msg": "Article annotated successfully."}
 
 @router.get("/readArticle", response_class=FileResponse)
-async def read_article(article_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    article_name, url = await crud_read_article(article_id, db)
+async def read_article(article_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    article_name, url = await crud_read_article(user_id, article_id, db)
     return FileResponse(path=url, filename=f"{article_name}.pdf", media_type='application/pdf')
 
 @router.get("/readArticleByUrl", response_model="dict")
-async def read_article_by_url(article_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    url, update_time = await crud_read_article_by_url(article_id, db)
+async def read_article_by_url(article_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    url, update_time = await crud_read_article_by_url(user_id, article_id, db)
     return {"article_url": url, "update_time": update_time}
 
 @router.post("/importSelfFolder", response_model="dict")
