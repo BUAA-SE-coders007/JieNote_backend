@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.note import NoteCreate, NoteUpdate, NoteFind
 from app.utils.get_db import get_db
@@ -21,8 +21,8 @@ async def delete_note(note_id: int, db: AsyncSession = Depends(get_db), current_
         raise HTTPException(status_code=404, detail="Note not found")
     return {"msg": "Note deleted successfully"}
 
-@router.put("/{note_id}", response_model=dict)
-async def update_note(note_id: int, content: Optional[str] = None, title: Optional[str] = None,db: AsyncSession = Depends(get_db)):
+@router.post("/{note_id}", response_model=dict)
+async def update_note(note_id: int, content: Optional[str] = Body(default=None), title: Optional[str] = Body(default=None), db: AsyncSession = Depends(get_db)):
     if content is None and title is None:
         raise HTTPException(status_code=400, detail="At least one field must be provided for update")
     note = NoteUpdate(id=note_id, content=content, title=title)
