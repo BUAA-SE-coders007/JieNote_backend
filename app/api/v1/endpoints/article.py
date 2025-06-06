@@ -12,7 +12,7 @@ import tempfile
 
 from app.utils.get_db import get_db
 from app.utils.auth import get_current_user
-from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_annotate_self_article, crud_read_article, crud_read_article_by_url, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags, crud_all_tags_order, crud_change_folder_name, crud_change_article_name, crud_article_statistic, crud_self_tree, crud_self_article_statistic, crud_items_in_recycle_bin, crud_delete_forever, crud_recover
+from app.curd.article import crud_upload_to_self_folder, crud_get_self_folders, crud_get_articles_in_folder, crud_self_create_folder, crud_self_article_to_recycle_bin, crud_self_folder_to_recycle_bin, crud_annotate_self_article, crud_read_article, crud_read_article_by_url, crud_import_self_folder, crud_export_self_folder,crud_create_tag, crud_delete_tag, crud_get_article_tags, crud_all_tags_order, crud_change_folder_name, crud_change_article_name, crud_article_statistic, crud_self_tree, crud_search, crud_self_article_statistic, crud_items_in_recycle_bin, crud_delete_forever, crud_recover
 from app.schemas.article import SelfCreateFolder
 
 router = APIRouter()
@@ -192,6 +192,12 @@ async def change_article_name(article_id: int = Body(...), article_name: str = B
 async def self_tree(page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
     user_id = user.get("id")
     total_folder_num, folders = await crud_self_tree(user_id, page_number, page_size, db)
+    return {"total_folder_num": total_folder_num, "folders": folders}
+
+@router.get("/search", response_model="dict")
+async def search(query: str = Query(...), page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    total_folder_num, folders = await crud_search(user_id, query, page_number, page_size, db)
     return {"total_folder_num": total_folder_num, "folders": folders}
 
 @router.get("/selfArticleStatistic", response_model=dict)

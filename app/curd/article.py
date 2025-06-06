@@ -258,6 +258,42 @@ async def crud_self_tree(user_id: int, page_number: int, page_size: int, db: Asy
     
     return total_num, folder_array
 
+async def crud_search(user_id: int, input: str, page_number: int, page_size: int, db: AsyncSession):
+    # 应在所有文件夹下搜索文献
+    query = select(Folder).where(Folder.user_id == user_id, Folder.visible == True).order_by(Folder.id.desc())
+    result = await db.execute(query)
+    folders = result.scalars().all()
+    folder_array = [{"folder_id": folder.id, "folder_name": folder.name, "articles": []} for folder in folders]
+    # 查询文献
+    for i in range(len(folder_array)):
+        query = select(Article).where(Article.folder_id == folder_array[i].get("folder_id"), Article.visible == True, Article.name.like(f"%{input}%")).order_by(Article.id.desc())
+        result = await db.execute(query)
+        articles = result.scalars().all()
+        article_array = [{"article_id": article.id, "article_name": article.name, "tags": [], "notes": []} for article in articles]
+        folder_array[i]["articles"] = article_array
+        # 查询所有tag和笔记
+        for j in range(len(article_array)):
+            # 查找所有tag
+            query = select(Tag).where(Tag.article_id == article_array[j].get("article_id")).order_by(Tag.id.asc())
+            result = await db.execute(query)
+            tags = result.scalars().all()
+            tag_array = [{"tag_id": tag.id, "tag_content": tag.content} for tag in tags]
+            article_array[j]["tags"] = tag_array
+            # 查找所有note
+            query = select(Note).where(Note.article_id == article_array[j].get("article_id"), Note.visible == True).order_by(Note.id.desc())
+            result = await db.execute(query)
+            notes = result.scalars().all()
+            note_array = [{"note_id": note.id, "note_title": note.title} for note in notes]
+            article_array[j]["notes"] = note_array
+    # 屏蔽掉没有搜索到文献的文件夹
+    folder_array[:] = [folder for folder in folder_array if folder["articles"]]
+    total_num = len(folder_array)
+    # 分页
+    if page_number and page_size:
+        folder_array = folder_array[(page_number - 1) * page_size : page_number * page_size]
+    # 返回
+    return total_num, folder_array
+
 async def crud_self_article_statistic(user_id: int, db: AsyncSession):
     # 查询个人拥有的、未被删除的文献总数
     query = (
