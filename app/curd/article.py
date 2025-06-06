@@ -1,8 +1,9 @@
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, insert, desc
 from sqlalchemy import func, cast, Date
 from datetime import datetime, timedelta
-from app.models.model import User, Group, Folder, Article, Note, Tag, user_group, self_recycle_bin
+from app.models.model import User, Group, Folder, Article, Note, Tag, user_group, self_recycle_bin, operate_permissions, delete_applications, group_logs
 
 async def crud_upload_to_self_folder(name: str, folder_id: int, url: str, db: AsyncSession):
     query = select(Folder.user_id).where(Folder.id == folder_id)
@@ -86,19 +87,49 @@ async def crud_annotate_self_article(article_id: int, db: AsyncSession):
     await db.refresh(article)
     return article.url
 
-async def crud_read_article(article_id: int, db: AsyncSession):
+async def crud_read_article(user_id: int, article_id: int, db: AsyncSession):
     query = select(Article).where(Article.id == article_id)
     result = await db.execute(query)
     article = result.scalar_one_or_none()
+    # 检查阅读权限
+    if article.user_id and article.user_id != user_id:
+        raise HTTPException(status_code=405, detail="You have no access to the article")
+    if article.group_id:
+        query = select(user_group).where(user_group.c.group_id == article.group_id, user_group.c.user_id == user_id)
+        result = await db.execute(query)
+        relation = result.first()
+        if not relation:
+            raise HTTPException(status_code=405, detail="You have no access to the article") 
+        query = select(operate_permissions).where(operate_permissions.c.user_id == user_id, operate_permissions.c.item_type == 2, operate_permissions.c.item_id == article_id)
+        result = await db.execute(query)
+        relation = result.first()
+        if not relation[4]:
+            raise HTTPException(status_code=405, detail="You have no access to the article")   
+    # 进行阅读
     article.clicks = article.clicks + 1
     await db.commit()
     await db.refresh(article)
     return article.name, article.url
 
-async def crud_read_article_by_url(article_id: int, db: AsyncSession):
+async def crud_read_article_by_url(user_id: int, article_id: int, db: AsyncSession):
     query = select(Article).where(Article.id == article_id)
     result = await db.execute(query)
     article = result.scalar_one_or_none()
+    # 检查阅读权限
+    if article.user_id and article.user_id != user_id:
+        raise HTTPException(status_code=405, detail="You have no access to the article")
+    if article.group_id:
+        query = select(user_group).where(user_group.c.group_id == article.group_id, user_group.c.user_id == user_id)
+        result = await db.execute(query)
+        relation = result.first()
+        if not relation:
+            raise HTTPException(status_code=405, detail="You have no access to the article") 
+        query = select(operate_permissions).where(operate_permissions.c.user_id == user_id, operate_permissions.c.item_type == 2, operate_permissions.c.item_id == article_id)
+        result = await db.execute(query)
+        relation = result.first()
+        if not relation[4]:
+            raise HTTPException(status_code=405, detail="You have no access to the article")   
+    # 进行阅读
     article.clicks = article.clicks + 1
     await db.commit()
     await db.refresh(article)
