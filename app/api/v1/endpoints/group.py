@@ -240,7 +240,7 @@ async def change_article_name(article_id: int = Body(...), article_name: str = B
 
 @router.post("/changeNote", response_model=dict)
 async def change_note(note_id: int = Body(...), note_title: Optional[str] = Body(default=None), note_content: Optional[str] = Body(default=None), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    if len(note_title) > 100:
+    if note_title and len(note_title) > 100:
         raise HTTPException(status_code=405, detail="Invalid note title, longer than 100")
     user_id = user.get("id")
     await crud_change_note(user_id, note_id, note_title, note_content, db)
