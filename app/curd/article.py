@@ -474,3 +474,13 @@ async def crud_recover(type: int, id: int, db: AsyncSession):
         await db.commit()
         await db.refresh(folder)
         return {"info": "Folder recovered successfully"}
+    
+async def get_article_info_in_db_by_id(db: AsyncSession, article_id: int):
+    """
+    Get an article by its ID.
+    """
+    result = await db.execute(select(Article).where(Article.id == article_id))
+    article = result.scalars().first()
+    if not article:
+        return None, None
+    return article.url, article.name

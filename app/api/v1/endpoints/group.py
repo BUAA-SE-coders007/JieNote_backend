@@ -265,3 +265,41 @@ async def disband(group_id: int, db: AsyncSession = Depends(get_db), user: dict 
     if avatar_url != "/lhcos-data/group-avatar/default.png":
         os.remove(avatar_url)
     return {"msg": "Group disbanded successfully"}
+
+
+from app.curd.article import get_article_info_in_db_by_id, crud_upload_to_self_folder
+@router.put("/copy", response_model=dict)
+async def copy_article(folder_id: int, article_id: int, is_group: Optional[bool] = None, db : AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    """
+    Copy an article file by its ID to a specified directory.
+    """
+    # 根据 ID 查询文章信息
+    file_path, title = await get_article_info_in_db_by_id(db=db, article_id=article_id)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    old_file_path = file_path
+    new_file_path = f"/lhcos-data/{uuid.uuid4()}.pdf"
+    
+    with open(old_file_path, "rb") as source_file:
+        with open(new_file_path, "wb") as dest_file:
+            dest_file.write(source_file.read())
+
+    if is_group is not None and is_group is True:
+        # 表示从群组转存到个人目录
+        new_article_id = await crud_new_article(
+            user_id= user.get("id"),
+            folder_id=folder_id,
+            article_name=title,
+            url=new_file_path,
+            db=db
+        )
+        return {"msg": "Article copied successfully", "new_article_id": new_article_id}
+    else:
+        new_article_id = await crud_upload_to_self_folder(
+            name=title, 
+            folder_id=folder_id, 
+            url=new_file_path, 
+            db=db
+        )
+        return {"msg": "Article copied successfully", "new_article_id": new_article_id}
