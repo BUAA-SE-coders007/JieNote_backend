@@ -103,7 +103,7 @@ async def crud_read_article(user_id: int, article_id: int, db: AsyncSession):
         query = select(operate_permissions).where(operate_permissions.c.user_id == user_id, operate_permissions.c.item_type == 2, operate_permissions.c.item_id == article_id)
         result = await db.execute(query)
         relation = result.first()
-        if not relation[4]:
+        if relation and not relation[4]:
             raise HTTPException(status_code=405, detail="You have no access to the article")   
     # 进行阅读
     article.clicks = article.clicks + 1
@@ -127,7 +127,7 @@ async def crud_read_article_by_url(user_id: int, article_id: int, db: AsyncSessi
         query = select(operate_permissions).where(operate_permissions.c.user_id == user_id, operate_permissions.c.item_type == 2, operate_permissions.c.item_id == article_id)
         result = await db.execute(query)
         relation = result.first()
-        if not relation[4]:
+        if relation and not relation[4]:
             raise HTTPException(status_code=405, detail="You have no access to the article")   
     # 进行阅读
     article.clicks = article.clicks + 1
