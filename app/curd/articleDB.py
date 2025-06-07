@@ -19,6 +19,11 @@ async def get_article_in_db(db: AsyncSession, get_article: GetArticle):
     if get_article.id:
         result = await db.execute(select(ArticleDB).where(ArticleDB.id == get_article.id))
         articles = result.scalars().first()
+        if not articles:
+            return [], 0
+        articles.clicks += 1  # 增加点击量
+        await db.commit()
+        await db.refresh(articles)  # 刷新以获取最新数据
         total_count = 1
         articles = [articles] if articles else []
     elif get_article.page and get_article.page_size:
@@ -61,6 +66,11 @@ async def search_article_in_db(db: AsyncSession, search_article: SearchArticle):
         result = await db.execute(select(ArticleDB).where(ArticleDB.title.like(f"%{search_article.query}%")))
         articles = result.scalars().all()
         total_count = len(articles)
+    # 更新所有搜索到文章的点击量
+    for article in articles:
+        article.clicks += 1  # 增加点击量
+    await db.commit()
+    await db.refresh(article)
     return [GetResponse.model_validate(article) for article in articles], total_count
     
 async def get_article_in_db_by_id(db: AsyncSession, article_id: int):
