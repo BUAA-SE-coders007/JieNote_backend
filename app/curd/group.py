@@ -119,10 +119,10 @@ async def crud_leave_group(group_id: int, user_id: int, db: AsyncSession):
     await db.commit()
 
 async def crud_get_basic_info(group_id: int, db: AsyncSession):
-    query = select(Group.name, Group.description, Group.avatar).where(Group.id == group_id)
+    query = select(Group.name, Group.description, Group.avatar, Group.create_time).where(Group.id == group_id)
     result = await db.execute(query)
     group = result.first()
-    return group.name, group.description, group.avatar
+    return group.name, group.description, group.avatar, group.create_time
 
 async def crud_get_people_info(group_id: int, db: AsyncSession):
     # 创建者信息

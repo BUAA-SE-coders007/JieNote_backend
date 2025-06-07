@@ -109,8 +109,8 @@ async def leave_group(model: LeaveGroup, db: AsyncSession = Depends(get_db), use
 
 @router.get("/getBasicInfo", response_model=dict)
 async def get_basic_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    name, desc, avatar = await crud_get_basic_info(group_id, db)
-    return {"avatar": avatar, "name": name, "desc": desc}
+    name, desc, avatar, time = await crud_get_basic_info(group_id, db)
+    return {"avatar": avatar, "name": name, "desc": desc, "time": time}
 
 @router.get("/getPeopleInfo", response_model=dict)
 async def get_people_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db)):
