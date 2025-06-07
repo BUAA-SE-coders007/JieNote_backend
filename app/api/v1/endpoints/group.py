@@ -279,14 +279,19 @@ async def copy_article(folder_id: int, article_id: int, is_group: Optional[bool]
         raise HTTPException(status_code=404, detail="File not found")
     
     old_file_path = file_path
+    new_file_path = f"/lhcos-data/{uuid.uuid4()}.pdf"
     
+    with open(old_file_path, "rb") as source_file:
+        with open(new_file_path, "wb") as dest_file:
+            dest_file.write(source_file.read())
+
     if is_group is not None and is_group is True:
         # 表示从群组转存到个人目录
         new_article_id = await crud_new_article(
             user_id= user.get("id"),
             folder_id=folder_id,
             article_name=title,
-            url=old_file_path,
+            url=new_file_path,
             db=db
         )
         return {"msg": "Article copied successfully", "new_article_id": new_article_id}
@@ -294,7 +299,7 @@ async def copy_article(folder_id: int, article_id: int, is_group: Optional[bool]
         new_article_id = await crud_upload_to_self_folder(
             name=title, 
             folder_id=folder_id, 
-            url=old_file_path, 
+            url=new_file_path, 
             db=db
         )
         return {"msg": "Article copied successfully", "new_article_id": new_article_id}
