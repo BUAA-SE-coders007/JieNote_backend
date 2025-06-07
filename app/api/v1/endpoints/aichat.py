@@ -30,7 +30,7 @@ async def generate_notes(
         messages = json.loads(history)
     else:
         # 首轮对话可加 system prompt
-        messages = [{"role": "system", "content": "你是一个智能笔记助手。"}]
+        messages = [{"role": "system", "content": "你是一个智能笔记助手。我们设置了笔记管理系统，我们做了以下功能：文献上传、文献搜索、文献推荐、文献笔记、文献综述、思维导图生成等。请根据用户输入生成相关内容。"}]
 
     # 2. 追加用户输入
     messages.append({"role": "user", "content": input.input})
