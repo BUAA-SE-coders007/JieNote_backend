@@ -77,6 +77,8 @@ async def get_article_info_in_db_by_id(db: AsyncSession, article_id: int):
     """
     result = await db.execute(select(ArticleDB).where(ArticleDB.id == article_id))
     article = result.scalars().first()
+    if not article:
+        return None, None
     return article.file_path, article.title
 
 async def recommend_article_in_db(db: AsyncSession, recommend_article: RecommendArticle):

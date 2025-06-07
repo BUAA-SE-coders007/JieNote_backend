@@ -131,7 +131,6 @@ async def copy_article(folder_id: int, article_id: int, is_group: bool | None = 
         raise HTTPException(status_code=500, detail=str(e))
     return {"msg": "Article copied successfully", "new_article_id": new_article_id}
 
-
 @router.get("/recommend", response_model=dict)
 async def recommend_article(recommend_article: RecommendArticle = Depends(), db: AsyncSession = Depends(get_db)):
     articles = await recommend_article_in_db(db=db, recommend_article=recommend_article)
