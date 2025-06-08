@@ -108,13 +108,15 @@ async def leave_group(model: LeaveGroup, db: AsyncSession = Depends(get_db), use
     return {"msg": "You successfully left the group"}
 
 @router.get("/getBasicInfo", response_model=dict)
-async def get_basic_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    name, desc, avatar, time = await crud_get_basic_info(group_id, db)
+async def get_basic_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    name, desc, avatar, time = await crud_get_basic_info(group_id, user_id, db)
     return {"avatar": avatar, "name": name, "desc": desc, "time": time}
 
 @router.get("/getPeopleInfo", response_model=dict)
-async def get_people_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    leader, admins, members = await crud_get_people_info(group_id, db)
+async def get_people_info(group_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    leader, admins, members = await crud_get_people_info(group_id, user_id, db)
     return {"leader": leader, "admins": admins, "members": members}
 
 @router.get("/getMyLevel", response_model=dict)
