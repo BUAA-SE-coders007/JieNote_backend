@@ -29,7 +29,14 @@ async def crud_get_self_folders(user_id: int, page_number: int, page_size: int, 
 
     return total_num, folders
 
-async def crud_get_articles_in_folder(folder_id: int, page_number: int, page_size: int, db: AsyncSession):
+async def crud_get_articles_in_folder(user_id: int, folder_id: int, page_number: int, page_size: int, db: AsyncSession):
+    # 先检查权限
+    query = select(Folder).where(Folder.id == folder_id)
+    result = await db.execute(query)
+    folder = result.scalar_one_or_none()
+    if folder.user_id != user_id:
+        raise HTTPException(status_code=405, detail="You have no access to it")
+    # 查找
     query = select(Article).where(Article.folder_id == folder_id, Article.visible == True).order_by(Article.id.desc())
     count_query = select(func.count()).select_from(query.subquery())
     count_result = await db.execute(count_query)
@@ -151,12 +158,16 @@ async def crud_import_self_folder(folder_name: str, article_names, urls, user_id
     for new_article in new_articles:
         await db.refresh(new_article)
 
-async def crud_export_self_folder(folder_id: int, db: AsyncSession):
+async def crud_export_self_folder(folder_id: int, user_id: int, db: AsyncSession):
+    # 权限检查
     query = select(Folder).where(Folder.id == folder_id)
     result = await db.execute(query)
     folder = result.scalar_one_or_none()
+    if folder.user_id != user_id:
+        raise HTTPException(status_code=405, detail="You have no access to it")
+    # 文件夹名
     folder_name = folder.name
-
+    #文献
     query = select(Article).where(Article.folder_id == folder_id, Article.visible == True).order_by(Article.id.desc())
     result = await db.execute(query)
     articles = result.scalars().all()

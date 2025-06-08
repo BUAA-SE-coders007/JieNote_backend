@@ -43,17 +43,16 @@ async def upload_to_self_folder(folder_id: int = Query(...), article: UploadFile
 @router.get("/getSelfFolders", response_model="dict")
 async def get_self_folders(page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), 
                      db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
-    # 获取用户id
     user_id = user.get("id")
-
     total_num, folders = await crud_get_self_folders(user_id, page_number, page_size, db)
     result = [{"folder_id": folder.id, "folder_name": folder.name} for folder in folders]
     return {"total_num": total_num, "result": result}
 
 @router.get("/getArticlesInFolder", response_model="dict")
 async def get_articles_in_folder(folder_id: int = Query(...), page_number: Optional[int] = Query(None, ge=1), page_size: Optional[int] = Query(None, ge=1), 
-                     db: AsyncSession = Depends(get_db)):
-    total_num, articles = await crud_get_articles_in_folder(folder_id, page_number, page_size, db)
+                     db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    total_num, articles = await crud_get_articles_in_folder(user_id, folder_id, page_number, page_size, db)
     result = [{"article_id": article.id, "article_name": article.name} for article in articles]
     return {"total_num": total_num, "result": result}
 
@@ -134,8 +133,9 @@ async def import_self_folder(folder_name: str = Query(...), zip: UploadFile = Fi
     return {"msg": "Successfully import articles"}
 
 @router.get("/exportSelfFolder", response_class=FileResponse)
-async def export_self_folder(background_tasks: BackgroundTasks, folder_id: int = Query(...), db: AsyncSession = Depends(get_db)):
-    zip_name, article_ids, article_names, article_urls = await crud_export_self_folder(folder_id, db)
+async def export_self_folder(background_tasks: BackgroundTasks, folder_id: int = Query(...), db: AsyncSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    user_id = user.get("id")
+    zip_name, article_ids, article_names, article_urls = await crud_export_self_folder(folder_id, user_id, db)
             
     tmp_dir = tempfile.gettempdir()
     zip_path = os.path.join(tmp_dir, f"{zip_name}.zip")
