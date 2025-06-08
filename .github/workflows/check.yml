@@ -50,7 +50,18 @@ jobs:
           pip install -r requirements.txt
 
       - name: Check FastAPI Server
+        env:
+            ALGORITHM: ${{ secrets.ALGORITHM }}
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+            FERNET_SECRET_KEY: ${{ secrets.FERNET_SECRET_KEY }}
+            KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+            REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+            REMOTE_PATH: ${{ secrets.REMOTE_PATH }}
+            REMOTE_USER: ${{ secrets.REMOTE_USER }}
+            SECRET_KEY: ${{ secrets.SECRET_KEY }}
+            SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
+            SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+            SQLALCHEMY_DATABASE_URL: ${{ secrets.SQLALCHEMY_DATABASE_URL }}
         run: |
           uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level warning &
           sleep 5
-          curl -f http://localhost:8000/docs

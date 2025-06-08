@@ -2,3 +2,4 @@ env
 __pycache__
 articles
 app.log
+.env

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
 
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None)
 
 @app.get("/")
 def read_root():
