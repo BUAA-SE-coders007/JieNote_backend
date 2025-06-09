@@ -19,6 +19,7 @@ class NoteFind(BaseModel):
     article_id: int | None = None
     page: int | None = None
     page_size: int | None = None
+    query: str | None = None
 
 class NoteResponse(BaseModel):
     id: int
