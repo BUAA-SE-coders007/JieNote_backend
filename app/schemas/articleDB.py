@@ -12,6 +12,12 @@ class GetArticle(BaseModel):
     page: int | None = None
     page_size: int | None = None
 
+class SearchArticle(BaseModel):
+    query: str
+    author: str | None = None
+    page: int | None = None
+    page_size: int | None = None
+
 class DeLArticle(BaseModel):
     id: int
 
@@ -21,7 +27,13 @@ class GetResponse(BaseModel):
     url: str
     create_time: datetime 
     update_time: datetime 
+    author: str
     file_path: str
+    clicks: int
+    intro: str | None = None
 
     class Config:
         from_attributes = True
+
+class RecommendArticle(BaseModel):
+    size: int
