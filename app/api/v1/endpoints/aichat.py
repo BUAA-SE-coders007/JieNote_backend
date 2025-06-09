@@ -11,7 +11,7 @@ from app.utils.get_db import get_db
 from app.utils.readPDF import read_pdf
 from fastapi import HTTPException
 from app.curd.articleDB import update_article_intro
-from app.models.model import ArticleDB
+from app.models.model import ArticleDB, Article
 
 router = APIRouter()
 redis_client = get_redis_client()
@@ -57,8 +57,13 @@ async def clear_notes(
 @router.get("/review", response_model=dict)
 async def review_notes(
     article_id: int,
+    db : AsyncSession = Depends(get_db),
 ):
-    path = f"/lhcos-data/{article_id}.pdf"
+    from sqlalchemy.future import select
+    # 查找文献path
+    result = await db.execute(select(Article).where(Article.id == article_id))
+    article = result.scalars().first()
+    path = article.url
     text = await read_pdf(path)
     text += "\n\n请根据以上内容生成文章综述。"
     async def ai_stream():
