@@ -67,10 +67,6 @@ async def search_article_in_db(db: AsyncSession, search_article: SearchArticle):
         articles = result.scalars().all()
         total_count = len(articles)
     # 更新所有搜索到文章的点击量
-    for article in articles:
-        article.clicks += 1  # 增加点击量
-    await db.commit()
-    await db.refresh(article)
     return [GetResponse.model_validate(article) for article in articles], total_count
     
 async def get_article_in_db_by_id(db: AsyncSession, article_id: int):
